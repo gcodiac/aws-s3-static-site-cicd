@@ -177,7 +177,7 @@ CI cannot create its own login, so you set these up by hand, once.
 
    There is no `iam:*`, no access to other buckets and no `AdministratorAccess`. The role cannot create users, read other data or touch other services. If a run fails with `AccessDenied`, the error names the missing action, so add exactly that one.
 
-6. **Repository variables:** in the GitHub repository settings, under *Secrets and variables*, *Actions*, *Variables*, add `AWS_ROLE_ARN` (the role's ARN), `AWS_REGION`, `TF_STATE_BUCKET` and `BUCKET_NAME`.
+6. **Repository variables:** in the GitHub repository settings, under *Secrets and variables*, *Actions*, *Variables*, add `AWS_ROLE_ARN` (the role's ARN), `AWS_REGION`, `TF_STATE_BUCKET` and `S3_BUCKET`.
 
 ## First deployment
 
