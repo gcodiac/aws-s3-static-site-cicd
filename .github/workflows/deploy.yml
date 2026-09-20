@@ -2,11 +2,20 @@ name: Deploy
 
 # Pull request: check the code and show the Terraform plan.
 # Push to main: apply the Terraform, upload the site, clear the CloudFront cache.
+# Run manually: pick any branch in the "Use workflow from" box and deploy it,
+# with no pull request. The site is uploaded and the cache cleared. Terraform is
+# only applied if you tick the box, so a branch preview cannot change your AWS setup.
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      apply_infra:
+        description: "Also run terraform apply (this changes your AWS infrastructure)"
+        type: boolean
+        default: false
 
 # GitHub gives the job a signed token, and AWS swaps it for temporary credentials.
 permissions:
@@ -62,11 +71,11 @@ jobs:
         run: terraform plan -input=false
 
       - name: Terraform apply
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.apply_infra)
         run: terraform apply -input=false -auto-approve
 
       - name: Upload the site to S3
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         working-directory: .
         run: >
           aws s3 sync . "s3://${{ vars.BUCKET_NAME }}" --delete
@@ -75,7 +84,7 @@ jobs:
           --exclude "README.md" --exclude "LICENSE"
 
       - name: Clear the CloudFront cache
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: >
           aws cloudfront create-invalidation --paths "/*"
           --distribution-id "$(terraform output -raw distribution_id)"
