@@ -242,14 +242,13 @@
     if (!log) return;
 
     var steps = [
-      { t: '10:24:01', text: 'Checkout   main@a1c9f42', cls: 't' },
-      { t: '10:24:03', text: 'CI         html, links and js validated', cls: 'ok' },
-      { t: '10:24:07', text: 'Terraform  fmt · validate · plan  no changes', cls: 'ok' },
-      { t: '10:24:11', text: 'Auth       assumed role via GitHub OIDC', cls: 'hl' },
-      { t: '10:24:15', text: 'Sync       9 objects uploaded, 1 deleted', cls: 'em' },
-      { t: '10:24:18', text: 'Cache      invalidation I2BQ7X created', cls: 'hl' },
-      { t: '10:24:29', text: 'Verify     200 OK · build a1c9f42 live', cls: 'ok' },
-      { t: '10:24:29', text: 'Deployed   https://d1x9k2p.cloudfront.net', cls: 'ok' }
+      { t: '10:24:01', text: 'Local      3 files changed', cls: 't' },
+      { t: '10:24:02', text: 'Command    make deploy BUCKET=aliskool', cls: 'hl' },
+      { t: '10:24:03', text: 'Auth       AWS CLI credentials found', cls: 'ok' },
+      { t: '10:24:05', text: 'Compare    local folder vs s3://aliskool', cls: 'ok' },
+      { t: '10:24:06', text: 'Sync       3 objects uploaded, 1 deleted', cls: 'em' },
+      { t: '10:24:07', text: 'Website    static hosting enabled', cls: 'hl' },
+      { t: '10:24:08', text: 'View       http://aliskool.s3-website-eu-west-1.amazonaws.com', cls: 'ok' }
     ];
 
     function line(step) {
@@ -306,6 +305,50 @@
     }
   }
 
+  /* Click (or Enter) opens the diagram in a larger dialog; click or Esc closes it. */
+  function initDiagramZoom(box) {
+    var dialog = doc.createElement('dialog');
+    dialog.className = 'zoom';
+    dialog.setAttribute('aria-label', 'Architecture diagram');
+
+    function open() {
+      dialog.innerHTML = '';
+      dialog.appendChild(box.querySelector('svg').cloneNode(true));
+      if (!dialog.isConnected) doc.body.appendChild(dialog);
+      dialog.showModal();
+    }
+
+    box.addEventListener('click', open);
+    box.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+    dialog.addEventListener('click', function () { dialog.close(); });
+  }
+
+  /* ----------------------------------------------------------------------
+   * Architecture diagram: inline the SVG so its connector lines can be animated
+   * from CSS. The file itself is untouched; the <img> stays as the fallback.
+   * -------------------------------------------------------------------- */
+  function initDiagram() {
+    var box = $('#arch-diagram');
+    var img = box && box.querySelector('img');
+    if (!img || !window.fetch) return;
+
+    fetch(img.getAttribute('src'))
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
+      .then(function (text) {
+        var svg = new DOMParser().parseFromString(text, 'image/svg+xml').documentElement;
+        if (svg.nodeName.toLowerCase() !== 'svg') return;
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+        svg.setAttribute('role', 'img');
+        svg.setAttribute('aria-label', img.getAttribute('alt') || '');
+        box.replaceChild(doc.importNode(svg, true), img);
+        initDiagramZoom(box);
+      })
+      .catch(function () { /* keep the static image */ });
+  }
+
   /* ----------------------------------------------------------------------
    * Boot
    * -------------------------------------------------------------------- */
@@ -318,6 +361,7 @@
     initSpotlight();
     initCounters();
     initConsole();
+    initDiagram();
   }
 
   if (doc.readyState === 'loading') {

@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cloud Launchpad — Ship static sites like a platform team</title>
-  <meta name="description" content="Cloud Launchpad is a reference static site deployed to Amazon S3 behind CloudFront with TLS, provisioned by Terraform and shipped by GitHub Actions.">
+  <title>Cloud Launchpad — Host a static site on S3 in one command</title>
+  <meta name="description" content="Cloud Launchpad is a static site hosted on a public Amazon S3 bucket and deployed straight from your terminal with the AWS CLI.">
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#070b16">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="Cloud Launchpad">
-  <meta property="og:description" content="A static site hosted on private S3, delivered by CloudFront over HTTPS, provisioned with Terraform and shipped by GitHub Actions.">
+  <meta property="og:description" content="A static site hosted on a public S3 bucket and deployed with a single aws s3 sync command.">
   <meta property="og:image" content="assets/images/og-cover.png">
   <meta name="twitter:card" content="summary_large_image">
 
@@ -95,10 +95,7 @@
       </a>
 
       <nav class="nav" id="primary-nav" aria-label="Primary">
-        <a href="#platform">Platform</a>
-        <a href="#pipeline">Pipeline</a>
         <a href="#architecture">Architecture</a>
-        <a href="#stack">Stack</a>
       </nav>
 
       <div class="site-header__actions">
@@ -123,35 +120,29 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="shell hero__inner">
         <div class="hero__copy reveal">
-          <p class="eyebrow"><span class="pulse" aria-hidden="true"></span> Static hosting, engineered properly</p>
+          <p class="eyebrow"><span class="pulse" aria-hidden="true"></span> The simplest way to host a website on AWS</p>
           <h1 id="hero-title">
-            Ship static sites like a
-            <span class="gradient-text">platform&nbsp;team</span>
+            Host a static site on S3
+            <span class="gradient-text">in&nbsp;one&nbsp;command</span>
           </h1>
           <p class="lede">
-            A private Amazon S3 bucket, a global CloudFront distribution, TLS from AWS Certificate
-            Manager, every resource declared in Terraform and every release delivered by GitHub Actions.
-            No servers to patch, no console clicking, no snowflakes.
+            A public Amazon S3 bucket with static website hosting turned on, and one
+            <code>aws s3 sync</code> to upload your files. No servers, no build step, no pipeline.
+            Just your files, your bucket and the AWS CLI you already have.
           </p>
           <div class="hero__cta">
-            <a class="btn btn--primary" href="#pipeline">
-              <span>See the pipeline</span>
+            <a class="btn btn--primary" href="#architecture">
+              <span>Read the architecture</span>
               <svg class="icon" aria-hidden="true"><use href="#i-arrow"></use></svg>
             </a>
-            <a class="btn btn--ghost" href="#architecture">Read the architecture</a>
           </div>
-          <ul class="hero__trust" role="list">
-            <li><svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg> Origin bucket stays private</li>
-            <li><svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg> HTTPS enforced at the edge</li>
-            <li><svg class="icon" aria-hidden="true"><use href="#i-loop"></use></svg> Reproducible from code</li>
-          </ul>
         </div>
 
         <div class="hero__visual reveal" data-reveal-delay="120">
           <div class="glass console" data-tilt>
             <div class="console__chrome">
               <span class="dot dot--red"></span><span class="dot dot--amber"></span><span class="dot dot--green"></span>
-              <span class="console__title">deploy · main → production</span>
+              <span class="console__title">make deploy · laptop → S3</span>
               <span class="badge badge--ok">passing</span>
             </div>
             <pre class="console__body" id="deploy-log" aria-live="polite" aria-label="Simulated deployment log"></pre>
@@ -160,225 +151,60 @@
               <span class="console__meta" id="deploy-status">idle</span>
             </div>
           </div>
-
-          <div class="glass edge-card" aria-label="Edge delivery summary">
-            <div class="edge-card__row">
-              <span class="edge-card__label">Edge cache</span>
-              <span class="chip chip--ok">HIT</span>
-            </div>
-            <div class="edge-card__row">
-              <span class="edge-card__label">Protocol</span>
-              <span class="mono">HTTP/3 · TLS 1.2+</span>
-            </div>
-            <div class="edge-card__row">
-              <span class="edge-card__label">Origin</span>
-              <span class="mono">s3 · private · OAC</span>
-            </div>
-          </div>
         </div>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── Stats ───────────────────────── -->
-    <section class="stats" aria-label="Platform characteristics">
-      <div class="shell stats__grid">
-        <div class="stat reveal">
-          <span class="stat__value" data-count-to="600" data-count-suffix="+">0</span>
-          <span class="stat__label">Edge locations in the CloudFront network</span>
-        </div>
-        <div class="stat reveal" data-reveal-delay="80">
-          <span class="stat__value" data-count-to="11" data-count-suffix=" nines">0</span>
-          <span class="stat__label">S3 durability by design &mdash; 99.999999999%</span>
-        </div>
-        <div class="stat reveal" data-reveal-delay="160">
-          <span class="stat__value" data-count-to="100" data-count-suffix="%">0</span>
-          <span class="stat__label">Of this platform declared in Terraform</span>
-        </div>
-        <div class="stat reveal" data-reveal-delay="240">
-          <span class="stat__value" data-count-to="0" data-count-suffix="">0</span>
-          <span class="stat__label">Long-lived AWS keys stored in GitHub</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── Platform ───────────────────────── -->
-    <section class="section" id="platform" aria-labelledby="platform-title">
-      <div class="shell">
-        <header class="section__head reveal">
-          <p class="eyebrow">The platform</p>
-          <h2 id="platform-title">Everything a small site needs, nothing it doesn't</h2>
-          <p class="section__sub">
-            Each capability below maps to a real AWS resource in <code>infra/</code> and a real
-            step in the delivery pipeline. Nothing here is decorative.
-          </p>
-        </header>
-
-        <div class="cards">
-          <article class="glass card reveal" data-spotlight>
-            <span class="card__icon"><svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg></span>
-            <h3>Private origin, public site</h3>
-            <p>The bucket blocks all public access. Only the CloudFront distribution can read objects, authorised by an Origin Access Control signature on every request.</p>
-            <p class="card__meta mono">aws_s3_bucket_public_access_block</p>
-          </article>
-
-          <article class="glass card reveal" data-reveal-delay="60" data-spotlight>
-            <span class="card__icon"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg></span>
-            <h3>Global edge delivery</h3>
-            <p>Content is cached at hundreds of points of presence, compressed with Brotli or gzip, and served from the location closest to the visitor.</p>
-            <p class="card__meta mono">aws_cloudfront_distribution</p>
-          </article>
-
-          <article class="glass card reveal" data-reveal-delay="120" data-spotlight>
-            <span class="card__icon"><svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg></span>
-            <h3>TLS without renewals</h3>
-            <p>Certificates are issued and rotated by AWS Certificate Manager. HTTP is redirected to HTTPS at the edge, so plaintext never reaches the origin.</p>
-            <p class="card__meta mono">aws_acm_certificate</p>
-          </article>
-
-          <article class="glass card reveal" data-spotlight>
-            <span class="card__icon"><svg class="icon" aria-hidden="true"><use href="#i-code"></use></svg></span>
-            <h3>Infrastructure as code</h3>
-            <p>Buckets, distributions, policies and roles are declared in Terraform. The plan is reviewed in a pull request before anything reaches the account.</p>
-            <p class="card__meta mono">terraform plan · terraform apply</p>
-          </article>
-
-          <article class="glass card reveal" data-reveal-delay="60" data-spotlight>
-            <span class="card__icon"><svg class="icon" aria-hidden="true"><use href="#i-branch"></use></svg></span>
-            <h3>Keyless deployments</h3>
-            <p>GitHub Actions exchanges a short-lived OIDC token for an IAM role. No long-lived AWS access keys are ever stored as repository secrets.</p>
-            <p class="card__meta mono">sts:AssumeRoleWithWebIdentity</p>
-          </article>
-
-          <article class="glass card reveal" data-reveal-delay="120" data-spotlight>
-            <span class="card__icon"><svg class="icon" aria-hidden="true"><use href="#i-gauge"></use></svg></span>
-            <h3>Verified releases</h3>
-            <p>After each deploy the pipeline invalidates the cache and re-requests the site, asserting the live build identifier matches the commit that triggered it.</p>
-            <p class="card__meta mono">scripts/verify-deployment.sh</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── Pipeline ───────────────────────── -->
-    <section class="section section--tint" id="pipeline" aria-labelledby="pipeline-title">
-      <div class="shell">
-        <header class="section__head reveal">
-          <p class="eyebrow">Delivery</p>
-          <h2 id="pipeline-title">From commit to edge in five steps</h2>
-          <p class="section__sub">
-            The same path runs for every change. Nobody uploads files by hand, and nobody needs
-            production credentials on their laptop.
-          </p>
-        </header>
-
-        <ol class="flow" role="list">
-          <li class="flow__step glass reveal">
-            <span class="flow__index">01</span>
-            <h3>Commit &amp; pull request</h3>
-            <p>A branch is pushed and opened for review. The diff is the unit of change for both the site and the infrastructure.</p>
-            <span class="flow__tag mono">git commit · git push</span>
-          </li>
-          <li class="flow__step glass reveal" data-reveal-delay="60">
-            <span class="flow__index">02</span>
-            <h3>Continuous integration</h3>
-            <p>Markup, links, JavaScript syntax and Terraform formatting are validated. A <code>terraform plan</code> is posted for review.</p>
-            <span class="flow__tag mono">.github/workflows/ci.yml</span>
-          </li>
-          <li class="flow__step glass reveal" data-reveal-delay="120">
-            <span class="flow__index">03</span>
-            <h3>Authenticate to AWS</h3>
-            <p>The deploy job requests an OIDC token from GitHub and trades it for temporary credentials on a least-privilege IAM role.</p>
-            <span class="flow__tag mono">id-token: write</span>
-          </li>
-          <li class="flow__step glass reveal" data-reveal-delay="180">
-            <span class="flow__index">04</span>
-            <h3>Sync to S3</h3>
-            <p>Fingerprinted assets are uploaded with long cache lifetimes, HTML with a short one, and files removed from the repository are deleted from the bucket.</p>
-            <span class="flow__tag mono">aws s3 sync --delete</span>
-          </li>
-          <li class="flow__step glass reveal" data-reveal-delay="240">
-            <span class="flow__index">05</span>
-            <h3>Invalidate &amp; verify</h3>
-            <p>CloudFront is told to drop the old objects, then the pipeline fetches the live URL and asserts the deployed build matches the commit.</p>
-            <span class="flow__tag mono">create-invalidation "/*"</span>
-          </li>
-        </ol>
       </div>
     </section>
 
     <!-- ───────────────────────── Architecture ───────────────────────── -->
     <section class="section" id="architecture" aria-labelledby="architecture-title">
-      <div class="shell arch">
-        <div class="arch__copy reveal">
-          <p class="eyebrow">Architecture</p>
-          <h2 id="architecture-title">One request path, locked down end to end</h2>
-          <p class="section__sub">
-            The bucket has no website endpoint and no public policy. It is reachable only through
-            CloudFront, which signs each origin request with its Origin Access Control identity.
-          </p>
-          <dl class="arch__list">
-            <div>
-              <dt><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg> Viewer → CloudFront</dt>
-              <dd>DNS resolves to the nearest edge location. HTTP is redirected to HTTPS; the response is compressed and cached.</dd>
-            </div>
-            <div>
-              <dt><svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg> CloudFront → S3</dt>
-              <dd>On a cache miss the edge calls the bucket's REST endpoint using SigV4 credentials from its Origin Access Control.</dd>
-            </div>
-            <div>
-              <dt><svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg> Bucket policy</dt>
-              <dd>Access is granted to the CloudFront service principal, and only when the source ARN matches this exact distribution.</dd>
-            </div>
-          </dl>
-        </div>
-
-        <figure class="arch__figure reveal" data-reveal-delay="120">
-          <div class="glass diagram" role="img" aria-label="Request flow: browser to CloudFront over HTTPS, CloudFront to a private S3 bucket using Origin Access Control, with public access to the bucket blocked.">
-            <div class="node node--client">
-              <span class="node__kind">Viewer</span>
-              <strong>Browser</strong>
-              <span class="node__meta mono">GET /index.html</span>
-            </div>
-            <div class="wire"><span class="wire__label mono">HTTPS</span><span class="wire__packet"></span></div>
-            <div class="node node--edge">
-              <span class="node__kind">Amazon CloudFront</span>
-              <strong>Edge location</strong>
-              <span class="node__meta mono">TLS · cache · compress</span>
-            </div>
-            <div class="wire"><span class="wire__label mono">SigV4 · OAC</span><span class="wire__packet"></span></div>
-            <div class="node node--origin">
-              <span class="node__kind">Amazon S3</span>
-              <strong>Private bucket</strong>
-              <span class="node__meta mono">block public access: on</span>
-            </div>
-            <div class="diagram__blocked">
-              <span class="x" aria-hidden="true">✕</span>
-              <span>Direct public requests to the bucket return <span class="mono">403 AccessDenied</span></span>
-            </div>
-          </div>
-          <figcaption>Internet → CloudFront → Origin Access Control → private S3 bucket.</figcaption>
-        </figure>
-      </div>
-    </section>
-
-    <!-- ───────────────────────── Stack ───────────────────────── -->
-    <section class="section section--tint" id="stack" aria-labelledby="stack-title">
       <div class="shell">
         <header class="section__head reveal">
-          <p class="eyebrow">Stack</p>
-          <h2 id="stack-title">The services doing the work</h2>
-          <p class="section__sub">Eight moving parts, each with a single clear job.</p>
+          <p class="eyebrow">Architecture</p>
+          <h2 id="architecture-title">One bucket, one upload, one URL</h2>
+          <p class="section__sub">
+            The engineer uploads the files to a public S3 bucket. Visitors load the site from the
+            bucket's website endpoint, or from a custom domain through Route 53.
+          </p>
         </header>
 
-        <ul class="tech" role="list">
-          <li class="glass tech__item reveal"><strong>Amazon S3</strong><span>Durable object storage for the built site</span></li>
-          <li class="glass tech__item reveal" data-reveal-delay="40"><strong>Amazon CloudFront</strong><span>Global CDN, TLS termination, caching</span></li>
-          <li class="glass tech__item reveal" data-reveal-delay="80"><strong>AWS Certificate Manager</strong><span>Free, auto-renewing public certificates</span></li>
-          <li class="glass tech__item reveal" data-reveal-delay="120"><strong>Origin Access Control</strong><span>Signed, private edge-to-origin requests</span></li>
-          <li class="glass tech__item reveal" data-reveal-delay="160"><strong>AWS IAM</strong><span>Least-privilege roles and trust policies</span></li>
-          <li class="glass tech__item reveal" data-reveal-delay="200"><strong>Terraform</strong><span>Declarative, reviewable infrastructure</span></li>
-          <li class="glass tech__item reveal" data-reveal-delay="240"><strong>GitHub Actions</strong><span>CI checks and the deployment pipeline</span></li>
-          <li class="glass tech__item reveal" data-reveal-delay="280"><strong>OpenID Connect</strong><span>Short-lived credentials, no stored keys</span></li>
+        <figure class="arch__figure reveal">
+          <div class="diagram--img" id="arch-diagram" role="button" tabindex="0" aria-label="Enlarge the architecture diagram" title="Click to enlarge">
+            <img src="assets/images/architecture.svg" width="798" height="292" loading="lazy"
+                 alt="Architecture: a DevOps engineer uploads static files directly to a public S3 bucket. A visitor requests the site, either through Route 53 for a custom domain or straight to the S3 website endpoint.">
+          </div>
+        </figure>
+
+        <ul class="pills reveal" role="list">
+          <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-code"></use></svg>
+            <span>edit files</span>
+          </li>
+          <li class="pill-arrow" aria-hidden="true">→</li>
+          <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-rocket"></use></svg>
+            <span>deploy</span>
+          </li>
+          <li class="pill-arrow" aria-hidden="true">→</li>
+          <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg>
+            <span>AWS Auth</span>
+          </li>
+          <li class="pill-arrow" aria-hidden="true">→</li>
+          <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-gauge"></use></svg>
+            <b>Compare</b><span>local vs bucket</span>
+          </li>
+          <li class="pill-arrow" aria-hidden="true">→</li>
+          <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-loop"></use></svg>
+            <b>Sync</b><span>upload changes</span>
+          </li>
+          <li class="pill-arrow" aria-hidden="true">→</li>
+          <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg>
+            <span>View website</span>
+          </li>
+      
         </ul>
       </div>
     </section>
@@ -388,12 +214,8 @@
       <div class="shell">
         <div class="glass cta__panel reveal">
           <span class="cta__glow" aria-hidden="true"></span>
-          <h2 id="cta-title">Build it, break it, then destroy it</h2>
-          <p>
-            Clone the repository, run the site locally, provision the infrastructure with Terraform,
-            wire up the pipeline — then tear it all down with a single command and prove you can
-            rebuild it from scratch.
-          </p>
+          <h2 id="cta-title">Deploy it, change it, deploy again</h2>
+          <p>Clone the repository, run <code>make deploy</code> against your bucket, and the site is live.</p>
           <div class="cta__actions">
             <a class="btn btn--primary" href="https://github.com/gcodiac/aws-s3-static-site-cicd" rel="noopener">
               <svg class="icon" aria-hidden="true"><use href="#i-github"></use></svg>
@@ -417,15 +239,12 @@
         </span>
         <div>
           <p class="site-footer__title">Cloud Launchpad</p>
-          <p class="site-footer__note">A reference static-hosting platform on AWS.</p>
+          <p class="site-footer__note">Static hosting on AWS, the simple way.</p>
         </div>
       </div>
 
       <nav class="site-footer__nav" aria-label="Footer">
-        <a href="#platform">Platform</a>
-        <a href="#pipeline">Pipeline</a>
         <a href="#architecture">Architecture</a>
-        <a href="#stack">Stack</a>
       </nav>
 
       <p class="site-footer__build mono" id="build-info">local build</p>

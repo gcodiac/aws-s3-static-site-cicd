@@ -494,12 +494,12 @@ code {
 
 /* 8. Hero ---------------------------------------------------------------- */
 
-.hero { padding-block: clamp(2.5rem, 5.5vw, 4.5rem) clamp(2.5rem, 5vw, 4rem); }
+.hero { padding-block: clamp(2.5rem, 5.5vw, 4.5rem) clamp(1rem, 2vw, 1.5rem); }
 
 .hero__inner {
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
-  gap: clamp(2.5rem, 5vw, 4.5rem);
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: clamp(1.5rem, 3vw, 2.5rem);
   align-items: center;
 }
 
@@ -560,7 +560,7 @@ code {
   padding: 1.1rem 1.25rem;
   min-height: 15.5rem;
   font-family: var(--mono);
-  font-size: .795rem;
+  font-size: .74rem;
   line-height: 1.85;
   color: var(--text-muted);
   white-space: pre-wrap;
@@ -719,7 +719,6 @@ code {
 }
 @media (min-width: 40rem)  { .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 60rem)  { .flow { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 72rem)  { .flow { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 
 .flow__step {
   position: relative;
@@ -1056,3 +1055,58 @@ code {
   body { background: #fff; color: #000; }
   .glass { border: 1px solid #ccc; box-shadow: none; backdrop-filter: none; }
 }
+
+/* Architecture image: the SVG uses light strokes, so it always sits on a dark panel. */
+.diagram--img { padding: 0; cursor: zoom-in; }
+.diagram--img img { display: block; width: 100%; height: auto; }
+
+/* Flowing dashes along the diagram's connector lines (the SVG file is unchanged). */
+.diagram--img svg { display: block; width: 100%; height: auto; }
+.diagram--img .connector-line {
+  stroke-dasharray: 7 6;
+  animation: diagram-flow 1s linear infinite;
+}
+@keyframes diagram-flow { to { stroke-dashoffset: -13; } }
+@media (prefers-reduced-motion: reduce) {
+  .diagram--img .connector-line { animation: none; stroke-dasharray: none; }
+}
+
+.zoom {
+  color-scheme: dark;
+  width: min(96vw, 90rem);
+  max-width: none;
+  padding: 1rem;
+  border: 0;
+  background: transparent;
+  cursor: zoom-out;
+}
+.zoom::backdrop { background: rgba(5, 8, 16, .88); }
+.zoom svg { display: block; width: 100%; height: auto; }
+
+/* Tighten the gap between the hero and the architecture section. */
+#architecture { padding-top: clamp(1.5rem, 3vw, 2.5rem); }
+
+/* Deploy steps as pills under the architecture diagram */
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: .4rem;
+  margin: 2rem auto 0;
+}
+.pill-arrow { color: var(--text-faint); font-size: .8rem; }
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem .7rem;
+  border-radius: 999px;
+  font-size: .75rem;
+  color: var(--text-dim, inherit);
+}
+.pill .icon { width: .85rem; height: .85rem; color: var(--brand); flex: none; }
+.pill b { font-weight: 600; color: var(--text, inherit); }
+.pill span { font-family: var(--font-mono, ui-monospace, monospace); font-size: .7rem; }
+
+.hero h1 { font-size: clamp(2.25rem, 4.2vw, 3.2rem); }
