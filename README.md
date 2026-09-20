@@ -47,7 +47,7 @@ Keeping the application static removes backend complexity, so the focus stays on
 
 ## What you'll learn
 
-Three stages, each one a branch. The same site is hosted a little more professionally every time.
+Three stages, each with its own branch. The same site is hosted a little more professionally every time.
 
 ### Stage 1: Deploy straight to S3 ([`1-aws-cli-deploy`](../../tree/1-aws-cli-deploy))
 
@@ -58,7 +58,12 @@ Create a public S3 bucket, turn on static website hosting, and upload the files 
 
 ### Stage 2: Terraform, run locally
 
-Coming next. The same hosting, declared as code and applied from your machine.
+The same hosting, declared as code and applied from your machine. Build it yourself, then compare.
+
+- Start here: [`2-terraform-start`](../../tree/2-terraform-start), the site with no Terraform. You write it.
+- Finished version: [`3-terraform-end`](../../tree/3-terraform-end), the completed Terraform.
+
+![Stage 2: an engineer runs Terraform to create a public S3 bucket and upload the static files](assets/images/stage-2-terraform.svg)
 
 ### Stage 3: Platform engineering ([`platform-engineering`](../../tree/platform-engineering))
 
