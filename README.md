@@ -47,14 +47,22 @@ Keeping the application static removes backend complexity, so the focus stays on
 
 ## What you'll learn
 
-| Topic | Where it shows up |
-| --- | --- |
-| Amazon S3 | Private origin bucket |
-| Amazon CloudFront | CDN, caching, edge HTTPS |
-| AWS Certificate Manager | TLS, issued in `us-east-1` |
-| Terraform | The infrastructure above, as reviewable code |
-| GitHub Actions | CI checks and an automated deployment |
-| GitHub OIDC | Temporary AWS credentials — no stored keys |
+Three stages, each one a branch. The same site is hosted a little more professionally every time.
+
+### Stage 1: Deploy straight to S3 ([`1-aws-cli-deploy`](../../tree/1-aws-cli-deploy))
+
+Create a public S3 bucket, turn on static website hosting, and upload the files with one
+`aws s3 sync`. No Terraform, no pipeline.
+
+![Stage 1: an engineer uploads static files directly to a public S3 bucket](assets/images/stage-1-direct-s3.svg)
+
+### Stage 2: Terraform, run locally
+
+Coming next. The same hosting, declared as code and applied from your machine.
+
+### Stage 3: Platform engineering ([`platform-engineering`](../../tree/platform-engineering))
+
+Private S3 origin, CloudFront, TLS, Terraform and GitHub Actions with OIDC. The full setup.
 
 ---
 
