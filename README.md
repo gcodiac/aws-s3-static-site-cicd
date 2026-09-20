@@ -56,7 +56,7 @@ Create a public S3 bucket, turn on static website hosting, and upload the files 
 
 ![Stage 1: an engineer uploads static files directly to a public S3 bucket](assets/images/stage-1-direct-s3.svg)
 
-### Stage 2: Terraform, run locally
+### Stage 2: Terraform, run locally ([`2-terraform-start`](../../tree/2-terraform-start) and [`3-terraform-end`](../../tree/3-terraform-end))
 
 The same hosting, declared as code and applied from your machine. Build it yourself, then compare.
 
@@ -69,9 +69,10 @@ The same hosting, declared as code and applied from your machine. Build it yours
 
 A private S3 bucket behind CloudFront, deployed by GitHub Actions. A push to `main` applies the
 Terraform, uploads the site and clears the cache, signing in to AWS with OIDC so no keys are stored.
-It builds on the S3 and CloudFront stages ([`4-cloudfront-start`](../../tree/4-cloudfront-start) and
-[`5-cloudfront-end`](../../tree/5-cloudfront-end)). This branch already contains the finished
-version: see `infra/` and `.github/workflows/deploy.yml`.
+
+- Start here: [`6-cicd-start`](../../tree/6-cicd-start), the CloudFront setup with no pipeline. You build it.
+- Finished version: [`7-cicd-end`](../../tree/7-cicd-end), the completed pipeline. This branch contains it too: see `infra/` and `.github/workflows/deploy.yml`.
+- Builds on: [`4-cloudfront-start`](../../tree/4-cloudfront-start) and [`5-cloudfront-end`](../../tree/5-cloudfront-end), the S3 and CloudFront stage.
 
 ![Stage 3: a git push starts a GitHub Actions pipeline that gets temporary credentials through OIDC, runs Terraform, uploads the site to a private S3 bucket and invalidates the CloudFront cache](assets/images/stage-3-cicd.svg)
 
@@ -92,20 +93,11 @@ Or open the folder in VS Code and use the **Live Server** extension.
 
 ---
 
-## Branches
-
-| Branch | Contents |
-| --- | --- |
-| `main` | This branch. The static site, and nothing else. |
-| [`platform-engineering`](../../tree/platform-engineering) | Terraform + CI/CD, fully implemented, with a readable commit history. |
-
----
-
 ## Course
 
 **[Open the Platform Engineering Course →](https://s3.aliskool.com/)**
 
-Step-by-step lessons — S3, CloudFront, ACM, Terraform, GitHub Actions and OIDC — built
+Step-by-step lessons on S3, CloudFront, ACM, Terraform, GitHub Actions and OIDC, built
 around this exact project.
 
 ---
@@ -128,4 +120,4 @@ destroyed when no longer needed.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
