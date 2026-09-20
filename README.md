@@ -61,17 +61,130 @@ make deploy
 CI cannot create its own login, so you set these up by hand.
 
 1. **State bucket:** create a second S3 bucket to hold the Terraform state, with versioning turned on. Every workflow run starts on a fresh machine, so the state has to live somewhere shared.
-2. **OIDC provider:** in IAM, add an identity provider for `token.actions.githubusercontent.com`, with the audience `sts.amazonaws.com`.
-3. **IAM role:** create a role for that provider. Its trust policy should only allow your repository (`repo:<owner>/<repo>:*`). For learning, give it `AdministratorAccess`. A real project would scope the permissions down.
-4. **Repository variables:** in the GitHub repository settings, under *Secrets and variables*, *Actions*, *Variables*, add `AWS_ROLE_ARN`, `AWS_REGION`, `TF_STATE_BUCKET` and `BUCKET_NAME`.
+2. **OIDC provider:** in the IAM console go to *Identity providers*, then *Add provider*. Choose *OpenID Connect*, set the provider URL to `https://token.actions.githubusercontent.com` and the audience to `sts.amazonaws.com`, then click *Add provider*. An account only needs one of these, so skip this step if it already exists.
+3. **Find your GitHub IDs:** GitHub now puts the numeric owner and repository IDs into the token it issues, so a name alone is no longer what AWS sees. Numeric IDs are never reused, which stops someone from deleting a repository, registering the same name and minting tokens your role would accept. Find yours:
+
+   ```bash
+   curl -s https://api.github.com/repos/<owner>/<repo> | jq '{owner_id: .owner.id, repo_id: .id}'
+   ```
+
+4. **IAM role:** in IAM go to *Roles*, then *Create role*. Choose *Web identity*, select the GitHub provider and the audience `sts.amazonaws.com`, and continue without attaching any permissions yet. Name it `cloud-launchpad-github-actions`. Then open the role, choose *Trust relationships*, *Edit trust policy*, and paste this, with your own values:
+
+   <details>
+   <summary>Trust policy</summary>
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Effect": "Allow",
+       "Principal": {
+         "Federated": "arn:aws:iam::<account-id>:oidc-provider/token.actions.githubusercontent.com"
+       },
+       "Action": "sts:AssumeRoleWithWebIdentity",
+       "Condition": {
+         "StringEquals": {
+           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+         },
+         "StringLike": {
+           "token.actions.githubusercontent.com:sub": [
+             "repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:refs/heads/main",
+             "repo:<owner>@<owner_id>/<repo>@<repo_id>:pull_request",
+             "repo:<owner>/<repo>:ref:refs/heads/main",
+             "repo:<owner>/<repo>:pull_request"
+           ]
+         }
+       }
+     }]
+   }
+   ```
+
+   </details>
+
+   The `sub` condition is the whole security boundary. It names one repository, and only its `main` branch and its pull requests. Never write it as `repo:<owner>/*`, and never leave it out: without it, any GitHub Actions workflow in any repository could assume your role.
+
+   The first two lines are the ID form that GitHub is rolling out. The last two are the classic form, for repositories that have not switched yet. Once you know which one your repository uses, delete the other pair. If a run fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity`, the claim did not match. Look up the failed `AssumeRoleWithWebIdentity` event in CloudTrail to see the exact `sub` value GitHub sent.
+
+5. **Permissions:** on the same role, choose *Add permissions*, *Create inline policy*, *JSON*, and paste this. Replace `<site-bucket>` and `<state-bucket>` with your two bucket names. Name it `cloud-launchpad-deploy`.
+
+   <details>
+   <summary>Permissions policy</summary>
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Sid": "SiteBucket",
+         "Effect": "Allow",
+         "Action": "s3:*",
+         "Resource": [
+           "arn:aws:s3:::<site-bucket>",
+           "arn:aws:s3:::<site-bucket>/*"
+         ]
+       },
+       {
+         "Sid": "TerraformStateList",
+         "Effect": "Allow",
+         "Action": "s3:ListBucket",
+         "Resource": "arn:aws:s3:::<state-bucket>"
+       },
+       {
+         "Sid": "TerraformStateObjects",
+         "Effect": "Allow",
+         "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+         "Resource": "arn:aws:s3:::<state-bucket>/*"
+       },
+       {
+         "Sid": "CloudFront",
+         "Effect": "Allow",
+         "Action": [
+           "cloudfront:CreateDistribution",
+           "cloudfront:GetDistribution",
+           "cloudfront:GetDistributionConfig",
+           "cloudfront:UpdateDistribution",
+           "cloudfront:DeleteDistribution",
+           "cloudfront:ListDistributions",
+           "cloudfront:TagResource",
+           "cloudfront:ListTagsForResource",
+           "cloudfront:CreateOriginAccessControl",
+           "cloudfront:GetOriginAccessControl",
+           "cloudfront:UpdateOriginAccessControl",
+           "cloudfront:DeleteOriginAccessControl",
+           "cloudfront:ListOriginAccessControls",
+           "cloudfront:ListCachePolicies",
+           "cloudfront:GetCachePolicy",
+           "cloudfront:CreateInvalidation",
+           "cloudfront:GetInvalidation",
+           "cloudfront:ListInvalidations"
+         ],
+         "Resource": "*"
+       }
+     ]
+   }
+   ```
+
+   </details>
+
+   What each part is for:
+
+   | Statement | Why the pipeline needs it |
+   | --- | --- |
+   | `SiteBucket` | Terraform creates and configures the site bucket, and `aws s3 sync` uploads to it. This is limited to that one bucket. |
+   | `TerraformStateList` and `TerraformStateObjects` | Terraform reads and writes its state file, and its lock file, in the state bucket. Nothing else in that bucket is reachable. |
+   | `CloudFront` | Terraform manages the distribution and the Origin Access Control, and the pipeline clears the cache. CloudFront cannot limit *create* actions to one resource, so this uses `*`. |
+
+   There is no `iam:*`, no access to other buckets and no `AdministratorAccess`. The role cannot create users, read other data or touch other services. If a run fails with `AccessDenied`, the error names the missing action, so add exactly that one.
+
+6. **Repository variables:** in the GitHub repository settings, under *Secrets and variables*, *Actions*, *Variables*, add `AWS_ROLE_ARN` (the role's ARN), `AWS_REGION`, `TF_STATE_BUCKET` and `BUCKET_NAME`.
 
 ### Part 2: Change the Terraform
 
-5. **Backend:** add `infra/backend.tf` that stores the state in the state bucket, using S3's native locking (`use_lockfile = true`). Raise `required_version` in `versions.tf` to `1.10` or newer, and move your existing state with `terraform init -migrate-state`.
+7. **Backend:** add `infra/backend.tf` that stores the state in the state bucket, using S3's native locking (`use_lockfile = true`). Raise `required_version` in `versions.tf` to `1.10` or newer, and move your existing state with `terraform init -migrate-state`.
 
 ### Part 3: Write the workflow
 
-6. Create `.github/workflows/deploy.yml` that
+8. Create `.github/workflows/deploy.yml` that
    - runs on pull requests to `main` and on pushes to `main`
    - has the permissions `id-token: write` and `contents: read`
    - signs in with `aws-actions/configure-aws-credentials`, using `AWS_ROLE_ARN`
