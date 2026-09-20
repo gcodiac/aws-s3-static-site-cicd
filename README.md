@@ -2,7 +2,7 @@
 
 Host a static website on S3 by declaring the infrastructure in Terraform and running it from
 your own machine. In this stage **you write the Terraform**. The finished version is on the
-`2-terraform-end` branch if you get stuck.
+`3-terraform-end` branch if you get stuck.
 
 ## Architecture
 
