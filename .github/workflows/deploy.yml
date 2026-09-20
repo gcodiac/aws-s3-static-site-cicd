@@ -29,7 +29,7 @@ concurrency:
 
 env:
   TF_IN_AUTOMATION: "true"
-  TF_VAR_bucket_name: ${{ vars.BUCKET_NAME }}
+  TF_VAR_bucket_name: ${{ vars.S3_BUCKET }}
   # OPTIONAL custom domain: uncomment, and add these two repository variables.
   # TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
   # TF_VAR_hosted_zone_name: ${{ vars.HOSTED_ZONE_NAME }}
@@ -78,7 +78,7 @@ jobs:
         if: github.event_name != 'pull_request'
         working-directory: .
         run: >
-          aws s3 sync . "s3://${{ vars.BUCKET_NAME }}" --delete
+          aws s3 sync . "s3://${{ vars.S3_BUCKET }}" --delete
           --exclude ".git/*" --exclude ".github/*" --exclude ".gitignore"
           --exclude "infra/*" --exclude "docs/*" --exclude "Makefile"
           --exclude "README.md" --exclude "LICENSE"
