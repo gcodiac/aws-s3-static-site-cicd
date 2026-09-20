@@ -88,3 +88,13 @@ jobs:
         run: >
           aws cloudfront create-invalidation --paths "/*"
           --distribution-id "$(terraform output -raw distribution_id)"
+
+      - name: Show the site URL
+        if: github.event_name != 'pull_request'
+        run: |
+          {
+            echo "### Site deployed"
+            echo
+            terraform output -raw cloudfront_url
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
