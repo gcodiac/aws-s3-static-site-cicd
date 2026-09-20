@@ -15,6 +15,10 @@ resource "aws_cloudfront_distribution" "site" {
   enabled             = true
   default_root_object = "index.html"
 
+  ## OPTIONAL custom domain and WAF: uncomment these two lines, and the acm, dns and waf files.
+  # aliases    = [var.domain_name]
+  # web_acl_id = aws_wafv2_web_acl.site.arn
+
   origin {
     origin_id                = "s3-site"
     domain_name              = aws_s3_bucket.site.bucket_regional_domain_name
@@ -49,8 +53,15 @@ resource "aws_cloudfront_distribution" "site" {
     }
   }
 
-  # The default *.cloudfront.net certificate already gives HTTPS. A custom domain comes later.
+  # The default *.cloudfront.net certificate already gives HTTPS.
   viewer_certificate {
     cloudfront_default_certificate = true
   }
+
+  ## OPTIONAL custom domain: replace the block above with this one.
+  # viewer_certificate {
+  #   acm_certificate_arn      = aws_acm_certificate_validation.site.certificate_arn
+  #   ssl_support_method       = "sni-only"
+  #   minimum_protocol_version = "TLSv1.2_2021"
+  # }
 }
