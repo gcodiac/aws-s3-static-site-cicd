@@ -30,22 +30,40 @@ make serve    # http://localhost:8080
 
 ## Deploy
 
+Bucket names are unique across all of AWS, so choose your own. There are two ways to set it.
+
+**Option A: a `terraform.tfvars` file (set it once)**
+
 ```bash
-make init                           # download the AWS provider
-make deploy BUCKET=my-bucket-name   # terraform apply: shows the plan, then asks for approval
-make destroy BUCKET=my-bucket-name  # delete everything when you are done
+cp infra/terraform.tfvars.example infra/terraform.tfvars
+# edit infra/terraform.tfvars and set bucket_name
+
+make init      # download the AWS provider
+make deploy    # terraform apply: shows the plan, then asks for approval
 ```
 
-Bucket names are globally unique, so pick your own. `make deploy` prints the website URL when it
-finishes. Edit the site and run it again, and Terraform uploads only the files that changed.
+**Option B: pass the name each time**
+
+```bash
+make init
+make deploy BUCKET=my-bucket-name
+```
+
+When you are done, `make destroy` (with the same `BUCKET=...` if you used option B) deletes everything.
+
+`make deploy` prints the website URL when it finishes. Edit the site and run it again, and
+Terraform uploads only the files that changed.
 
 Without `make`, run the same commands directly:
 
 ```bash
 cd infra
 terraform init
-terraform apply -var bucket_name=my-bucket-name
+terraform apply                                  # uses terraform.tfvars
+terraform apply -var bucket_name=my-bucket-name  # or pass the name
 ```
+
+`terraform.tfvars` is ignored by git, so your own bucket name is never committed.
 
 ## What the Terraform creates
 
