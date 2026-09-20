@@ -176,7 +176,7 @@ CI cannot create its own login, so you set these up by hand.
 
    There is no `iam:*`, no access to other buckets and no `AdministratorAccess`. The role cannot create users, read other data or touch other services. If a run fails with `AccessDenied`, the error names the missing action, so add exactly that one.
 
-6. **Repository variables:** in the GitHub repository settings, under *Secrets and variables*, *Actions*, *Variables*, add `AWS_ROLE_ARN` (the role's ARN), `AWS_REGION`, `TF_STATE_BUCKET` and `BUCKET_NAME`.
+6. **Repository variables:** in the GitHub repository settings, under *Secrets and variables*, *Actions*, *Variables*, add `AWS_ROLE_ARN` (the role's ARN), `AWS_REGION`, `TF_STATE_BUCKET` and `S3_BUCKET`.
 
 ### Part 2: Change the Terraform
 
@@ -193,7 +193,7 @@ CI cannot create its own login, so you set these up by hand.
    - then syncs the site files to the bucket with `aws s3 sync`, leaving out the repository files
    - then creates a CloudFront invalidation for `/*`
 
-   The bucket name comes from the `BUCKET_NAME` variable, which CI also passes to Terraform as `TF_VAR_bucket_name`. The distribution ID comes from `terraform output -raw distribution_id`.
+   The bucket name comes from the `S3_BUCKET` variable, which CI also passes to Terraform as `TF_VAR_bucket_name`. The distribution ID comes from `terraform output -raw distribution_id`.
 
 Push it to `main`, open the Actions tab and watch it run. Then open the `cloudfront_url`.
 
