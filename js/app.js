@@ -242,13 +242,13 @@
     if (!log) return;
 
     var steps = [
-      { t: '10:24:01', text: 'Local       3 files changed', cls: 't' },
-      { t: '10:24:02', text: 'Command     terraform apply', cls: 'hl' },
-      { t: '10:24:03', text: 'Auth        AWS credentials found', cls: 'ok' },
-      { t: '10:24:05', text: 'Plan        5 to add, 1 to change', cls: 'ok' },
-      { t: '10:24:09', text: 'Apply       private bucket and OAC created', cls: 'em' },
-      { t: '10:24:11', text: 'CloudFront  distribution deployed', cls: 'hl' },
-      { t: '10:24:11', text: 'View        https://d1x9k2p.cloudfront.net', cls: 'ok' }
+      { t: '10:24:01', text: 'Checkout    main@a1c9f42', cls: 't' },
+      { t: '10:24:03', text: 'CI          checks passed', cls: 'ok' },
+      { t: '10:24:07', text: 'Terraform   fmt · validate · plan', cls: 'ok' },
+      { t: '10:24:11', text: 'Auth        assumed role via GitHub OIDC', cls: 'hl' },
+      { t: '10:24:15', text: 'Sync        3 objects uploaded, 1 deleted', cls: 'em' },
+      { t: '10:24:18', text: 'Cache       invalidation created', cls: 'hl' },
+      { t: '10:24:29', text: 'View        https://d1x9k2p.cloudfront.net', cls: 'ok' }
     ];
 
     function line(step) {

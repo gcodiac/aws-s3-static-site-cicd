@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cloud Launchpad — Host a static site on S3 behind CloudFront</title>
-  <meta name="description" content="Cloud Launchpad is a static site stored in a private Amazon S3 bucket and served worldwide over HTTPS by CloudFront, provisioned with Terraform.">
+  <title>Cloud Launchpad — Ship a static site with CI/CD</title>
+  <meta name="description" content="Cloud Launchpad is a static site in a private Amazon S3 bucket behind CloudFront, deployed by GitHub Actions and Terraform with no stored AWS keys.">
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#070b16">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="Cloud Launchpad">
-  <meta property="og:description" content="A static site in a private S3 bucket, served over HTTPS by CloudFront and created with Terraform.">
+  <meta property="og:description" content="A static site on S3 and CloudFront, deployed on every push by GitHub Actions and Terraform using OIDC.">
   <meta property="og:image" content="assets/images/og-cover.png">
   <meta name="twitter:card" content="summary_large_image">
 
@@ -120,15 +120,15 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="shell hero__inner">
         <div class="hero__copy reveal">
-          <p class="eyebrow"><span class="pulse" aria-hidden="true"></span> A private bucket, served by CloudFront</p>
+          <p class="eyebrow"><span class="pulse" aria-hidden="true"></span> From git push to CloudFront</p>
           <h1 id="hero-title">
-            Host a static site on S3
-            <span class="gradient-text">behind&nbsp;CloudFront</span>
+            Ship a static site
+            <span class="gradient-text">with&nbsp;CI/CD</span>
           </h1>
           <p class="lede">
-            A private Amazon S3 bucket served through a CloudFront distribution over HTTPS,
-            all declared in Terraform. Only CloudFront can read the bucket, so visitors never
-            touch S3 directly. Just your files, Terraform and the AWS credentials you already have.
+            Push to <code>main</code> and GitHub Actions plans and applies the Terraform, uploads the
+            files to a private S3 bucket and clears the CloudFront cache. It signs in to AWS with
+            OIDC, so there are no access keys stored in GitHub.
           </p>
           <div class="hero__cta">
             <a class="btn btn--primary" href="#architecture">
@@ -142,7 +142,7 @@
           <div class="glass console" data-tilt>
             <div class="console__chrome">
               <span class="dot dot--red"></span><span class="dot dot--amber"></span><span class="dot dot--green"></span>
-              <span class="console__title">terraform apply · laptop → CloudFront</span>
+              <span class="console__title">git push · main → CloudFront</span>
               <span class="badge badge--ok">passing</span>
             </div>
             <pre class="console__body" id="deploy-log" aria-live="polite" aria-label="Simulated deployment log"></pre>
@@ -160,43 +160,48 @@
       <div class="shell">
         <header class="section__head reveal">
           <p class="eyebrow">Architecture</p>
-          <h2 id="architecture-title">A private bucket, a public CloudFront URL</h2>
+          <h2 id="architecture-title">Every push, deployed the same way</h2>
           <p class="section__sub">
-            Terraform, run from your machine, creates a private S3 bucket and a CloudFront distribution. Visitors reach the site through CloudFront over HTTPS, and only CloudFront can read the bucket. Route 53, WAF and Certificate Manager come in later stages.
+            A push to GitHub starts the pipeline. It checks the code, gets temporary AWS credentials through OIDC, applies the Terraform, uploads the site to the private S3 bucket and invalidates the CloudFront cache. Visitors only ever reach the site through CloudFront.
           </p>
         </header>
 
         <figure class="arch__figure reveal">
           <div class="diagram--img" id="arch-diagram" role="button" tabindex="0" aria-label="Enlarge the architecture diagram" title="Click to enlarge">
-            <img src="assets/images/architecture.svg" width="1222" height="462" loading="lazy"
-                 alt="Architecture: an engineer runs Terraform to create a private S3 bucket and a CloudFront distribution that reads it using Origin Access Control. Visitors request the site through CloudFront over HTTPS. The full platform also shows Route 53, WAF and Certificate Manager.">
+            <img src="assets/images/architecture.svg" width="1222" height="713" loading="lazy"
+                 alt="Architecture: a git push starts a GitHub Actions pipeline that checks out the code, tests it, and deploys. The pipeline gets temporary credentials from an AWS IAM role through OIDC, runs Terraform, uploads the files to a private S3 bucket and invalidates the CloudFront cache. Visitors reach the site through CloudFront.">
           </div>
         </figure>
 
         <ul class="pills reveal" role="list">
           <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-branch"></use></svg>
+            <span>git push</span>
+          </li>
+          <li class="pill-arrow" aria-hidden="true">→</li>
+          <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg>
+            <span>CI checks</span>
+          </li>
+          <li class="pill-arrow" aria-hidden="true">→</li>
+          <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg>
+            <span>OIDC login</span>
+          </li>
+          <li class="pill-arrow" aria-hidden="true">→</li>
+          <li class="pill glass">
             <svg class="icon" aria-hidden="true"><use href="#i-code"></use></svg>
-            <span>edit files</span>
-          </li>
-          <li class="pill-arrow" aria-hidden="true">→</li>
-          <li class="pill glass">
-            <svg class="icon" aria-hidden="true"><use href="#i-loop"></use></svg>
-            <span>terraform init</span>
-          </li>
-          <li class="pill-arrow" aria-hidden="true">→</li>
-          <li class="pill glass">
-            <svg class="icon" aria-hidden="true"><use href="#i-gauge"></use></svg>
-            <span>terraform plan</span>
-          </li>
-          <li class="pill-arrow" aria-hidden="true">→</li>
-          <li class="pill glass">
-            <svg class="icon" aria-hidden="true"><use href="#i-rocket"></use></svg>
             <span>terraform apply</span>
           </li>
           <li class="pill-arrow" aria-hidden="true">→</li>
           <li class="pill glass">
-            <svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg>
-            <span>View website</span>
+            <svg class="icon" aria-hidden="true"><use href="#i-rocket"></use></svg>
+            <span>upload to S3</span>
+          </li>
+          <li class="pill-arrow" aria-hidden="true">→</li>
+          <li class="pill glass">
+            <svg class="icon" aria-hidden="true"><use href="#i-loop"></use></svg>
+            <span>invalidate cache</span>
           </li>
         </ul>
       </div>
@@ -207,8 +212,8 @@
       <div class="shell">
         <div class="glass cta__panel reveal">
           <span class="cta__glow" aria-hidden="true"></span>
-          <h2 id="cta-title">Deploy it, change it, apply again</h2>
-          <p>Clone the repository, run <code>terraform init</code> then <code>terraform apply</code> with your bucket name, and the site is live.</p>
+          <h2 id="cta-title">Push it, watch it deploy</h2>
+          <p>Fork the repository, add your AWS role to the repository variables, then push to <code>main</code> and watch the workflow run.</p>
           <div class="cta__actions">
             <a class="btn btn--primary" href="https://github.com/gcodiac/aws-s3-static-site-cicd" rel="noopener">
               <svg class="icon" aria-hidden="true"><use href="#i-github"></use></svg>
