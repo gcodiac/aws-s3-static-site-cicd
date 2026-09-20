@@ -23,7 +23,7 @@ Visitors load the site from the bucket's website endpoint, or from a custom doma
 ```bash
 git clone git@github.com:gcodiac/aws-s3-static-site-cicd.git
 cd aws-s3-static-site-cicd
-git checkout 2-terraform-end
+git checkout 3-terraform-end
 
 make serve    # http://localhost:8080
 ```
