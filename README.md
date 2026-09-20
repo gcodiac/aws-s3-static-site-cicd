@@ -77,11 +77,10 @@ Private S3 origin, CloudFront, TLS, Terraform and GitHub Actions with OIDC. The 
 git clone git@github.com:gcodiac/aws-s3-static-site-cicd.git
 cd aws-s3-static-site-cicd
 
-./scripts/serve.sh    # http://localhost:8080
-./scripts/test.sh     # static site checks
+make serve    # http://localhost:8080
 ```
 
-No build step — `serve.sh` wraps `python3 -m http.server`.
+Or open the folder in VS Code and use the **Live Server** extension.
 
 ---
 
