@@ -242,13 +242,13 @@
     if (!log) return;
 
     var steps = [
-      { t: '10:24:01', text: 'Local      3 files changed', cls: 't' },
-      { t: '10:24:02', text: 'Command    terraform apply', cls: 'hl' },
-      { t: '10:24:03', text: 'Auth       AWS credentials found', cls: 'ok' },
-      { t: '10:24:05', text: 'Plan       2 to add, 1 to change', cls: 'ok' },
-      { t: '10:24:09', text: 'Apply      resources created, files uploaded', cls: 'em' },
-      { t: '10:24:11', text: 'Website    static hosting enabled', cls: 'hl' },
-      { t: '10:24:11', text: 'View       http://aliskool.s3-website-eu-west-1.amazonaws.com', cls: 'ok' }
+      { t: '10:24:01', text: 'Local       3 files changed', cls: 't' },
+      { t: '10:24:02', text: 'Command     terraform apply', cls: 'hl' },
+      { t: '10:24:03', text: 'Auth        AWS credentials found', cls: 'ok' },
+      { t: '10:24:05', text: 'Plan        5 to add, 1 to change', cls: 'ok' },
+      { t: '10:24:09', text: 'Apply       private bucket and OAC created', cls: 'em' },
+      { t: '10:24:11', text: 'CloudFront  distribution deployed', cls: 'hl' },
+      { t: '10:24:11', text: 'View        https://d1x9k2p.cloudfront.net', cls: 'ok' }
     ];
 
     function line(step) {

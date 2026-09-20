@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cloud Launchpad — Host a static site on S3 with Terraform</title>
-  <meta name="description" content="Cloud Launchpad is a static site hosted on a public Amazon S3 bucket and provisioned with Terraform from your terminal.">
+  <title>Cloud Launchpad — Host a static site on S3 behind CloudFront</title>
+  <meta name="description" content="Cloud Launchpad is a static site stored in a private Amazon S3 bucket and served worldwide over HTTPS by CloudFront, provisioned with Terraform.">
   <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#070b16">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="Cloud Launchpad">
-  <meta property="og:description" content="A static site hosted on a public S3 bucket and created and uploaded with Terraform.">
+  <meta property="og:description" content="A static site in a private S3 bucket, served over HTTPS by CloudFront and created with Terraform.">
   <meta property="og:image" content="assets/images/og-cover.png">
   <meta name="twitter:card" content="summary_large_image">
 
@@ -120,15 +120,15 @@
     <section class="hero" aria-labelledby="hero-title">
       <div class="shell hero__inner">
         <div class="hero__copy reveal">
-          <p class="eyebrow"><span class="pulse" aria-hidden="true"></span> Infrastructure as code, run from your laptop</p>
+          <p class="eyebrow"><span class="pulse" aria-hidden="true"></span> A private bucket, served by CloudFront</p>
           <h1 id="hero-title">
             Host a static site on S3
-            <span class="gradient-text">with&nbsp;Terraform</span>
+            <span class="gradient-text">behind&nbsp;CloudFront</span>
           </h1>
           <p class="lede">
-            A public Amazon S3 bucket with static website hosting, declared in Terraform.
-            One command creates the bucket and uploads your files. No servers, no pipeline.
-            Just your files, Terraform and the AWS credentials you already have.
+            A private Amazon S3 bucket served through a CloudFront distribution over HTTPS,
+            all declared in Terraform. Only CloudFront can read the bucket, so visitors never
+            touch S3 directly. Just your files, Terraform and the AWS credentials you already have.
           </p>
           <div class="hero__cta">
             <a class="btn btn--primary" href="#architecture">
@@ -142,7 +142,7 @@
           <div class="glass console" data-tilt>
             <div class="console__chrome">
               <span class="dot dot--red"></span><span class="dot dot--amber"></span><span class="dot dot--green"></span>
-              <span class="console__title">terraform apply · laptop → S3</span>
+              <span class="console__title">terraform apply · laptop → CloudFront</span>
               <span class="badge badge--ok">passing</span>
             </div>
             <pre class="console__body" id="deploy-log" aria-live="polite" aria-label="Simulated deployment log"></pre>
@@ -160,16 +160,16 @@
       <div class="shell">
         <header class="section__head reveal">
           <p class="eyebrow">Architecture</p>
-          <h2 id="architecture-title">One bucket, one apply, one URL</h2>
+          <h2 id="architecture-title">A private bucket, a public CloudFront URL</h2>
           <p class="section__sub">
-            Terraform, run from your machine, creates the public S3 bucket and uploads the files. Visitors load the site from the bucket's website endpoint, or from a custom domain through Route 53.
+            Terraform, run from your machine, creates a private S3 bucket and a CloudFront distribution. Visitors reach the site through CloudFront over HTTPS, and only CloudFront can read the bucket. Route 53, WAF and Certificate Manager come in later stages.
           </p>
         </header>
 
         <figure class="arch__figure reveal">
           <div class="diagram--img" id="arch-diagram" role="button" tabindex="0" aria-label="Enlarge the architecture diagram" title="Click to enlarge">
-            <img src="assets/images/architecture.svg" width="798" height="292" loading="lazy"
-                 alt="Architecture: an engineer runs Terraform to create a public S3 bucket and upload the static files. A visitor requests the site, either through Route 53 for a custom domain or straight to the S3 website endpoint.">
+            <img src="assets/images/architecture.svg" width="1222" height="462" loading="lazy"
+                 alt="Architecture: an engineer runs Terraform to create a private S3 bucket and a CloudFront distribution that reads it using Origin Access Control. Visitors request the site through CloudFront over HTTPS. The full platform also shows Route 53, WAF and Certificate Manager.">
           </div>
         </figure>
 
