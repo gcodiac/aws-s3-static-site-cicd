@@ -1,14 +1,13 @@
-# Cloud Launchpad: S3 + CloudFront (start)
+# Cloud Launchpad: S3 + CloudFront (end)
 
-Put CloudFront in front of the site and make the S3 bucket private. In this stage **you extend
-the Terraform** from the previous stage. The finished version is on the `5-cloudfront-end` branch
-if you get stuck.
+Serve the site through CloudFront and keep the S3 bucket private. This is the finished
+version. To build it yourself, start from the `4-cloudfront-start` branch.
 
 ## Architecture
 
 ![AWS architecture: an engineer runs Terraform to create a private S3 bucket that is served through CloudFront using Origin Access Control](assets/images/architecture.svg)
 
-The diagram shows the full platform. In this stage you build the part in the middle:
+The diagram shows the full platform. This stage builds the part in the middle:
 
 - a **private S3 bucket**, with all public access blocked
 - a **CloudFront distribution** that serves the site over HTTPS
@@ -30,49 +29,66 @@ Route 53, WAF and Certificate Manager come in later stages. Visitors use the
 ```bash
 git clone git@github.com:gcodiac/aws-s3-static-site-cicd.git
 cd aws-s3-static-site-cicd
-git checkout 4-cloudfront-start
+git checkout 5-cloudfront-end
 
 make serve    # http://localhost:8080
 ```
 
-## Starting point
+## Deploy
 
-`infra/` already has working Terraform for a **public** bucket with website hosting. Deploy it
-first if you want to see the difference:
+Bucket names are unique across all of AWS, so choose your own.
 
 ```bash
 cp infra/terraform.tfvars.example infra/terraform.tfvars   # set your own bucket_name
 make init
-make deploy
+make deploy     # terraform apply: shows the plan, then asks for approval
 ```
 
-## Your task
+Or pass the name each time: `make deploy BUCKET=my-bucket-name`.
 
-Change `infra/` so the bucket is private and CloudFront is the only way in:
+CloudFront takes a few minutes to create. When it finishes, `make deploy` prints
+the `cloudfront_url`. Open it.
 
-1. **Make the bucket private:** set all four settings in `aws_s3_bucket_public_access_block` to `true`, and remove the website configuration. CloudFront reads the bucket through its normal endpoint, not the website endpoint.
-2. **Origin Access Control:** add an `aws_cloudfront_origin_access_control` for S3, signing requests with `sigv4`.
-3. **Distribution:** add an `aws_cloudfront_distribution` that
-   - uses the bucket's regional domain name as its origin, with the access control attached
-   - sets `index.html` as the default root object
-   - redirects HTTP to HTTPS
-   - uses one of the AWS managed cache policies
-   - uses the default CloudFront certificate
-   - shows `404.html` for missing files
-4. **Bucket policy:** replace the public-read policy with one that lets the CloudFront service principal (`cloudfront.amazonaws.com`) run `s3:GetObject`, but only when the source ARN is your distribution.
-5. **Output:** print the CloudFront URL, `https://<distribution domain name>`.
-
-The Terraform documentation for the AWS provider has an example of each resource.
-
-## Deploy
+Without `make`, run the same commands directly:
 
 ```bash
-make init
-make deploy
+cd infra
+terraform init
+terraform apply
 ```
 
-CloudFront takes a few minutes to create, so be patient. When it finishes, open the printed URL.
-When you are done, `make destroy` deletes everything.
+### Changing the site
+
+Edit a file and run `make deploy` again. Terraform uploads only the files that changed. CloudFront
+caches files for up to a day, so clear its cache to see the change straight away:
+
+```bash
+make invalidate
+```
+
+### Clean up
+
+```bash
+make destroy    # add BUCKET=... if you used it with make deploy
+```
+
+## What the Terraform creates
+
+All of it is in the [infra/](infra/) folder. You do not need an existing bucket.
+
+| Resource | Purpose |
+| --- | --- |
+| `aws_s3_bucket` | The bucket, kept private |
+| `aws_s3_bucket_public_access_block` | Blocks all public access |
+| `aws_cloudfront_origin_access_control` | Lets CloudFront sign its requests to S3 |
+| `aws_cloudfront_distribution` | Serves the site over HTTPS and shows `404.html` for missing files |
+| `aws_s3_bucket_policy` | Lets only this distribution read the bucket |
+| `aws_s3_object` | One per site file, with the right content type |
+
+Visitors use the `*.cloudfront.net` address, which has HTTPS from the default CloudFront
+certificate. Opening the bucket's own S3 address returns Access Denied, which is the point.
+
+State is kept locally in `infra/terraform.tfstate`, which is not committed.
 
 ---
 
