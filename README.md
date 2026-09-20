@@ -1,8 +1,7 @@
-# Cloud Launchpad: Stage 2, Terraform (start)
+# Cloud Launchpad: Stage 2, Terraform (end)
 
-Host a static website on S3 by declaring the infrastructure in Terraform and running it from
-your own machine. In this stage **you write the Terraform**. The finished version is on the
-`2-terraform-end` branch if you get stuck.
+Host a static website on S3 with Terraform, run from your own machine. This is the finished
+version of stage 2. To build it yourself, start from the `2-terraform-start` branch.
 
 ## Architecture
 
@@ -17,53 +16,60 @@ Visitors load the site from the bucket's website endpoint, or from a custom doma
 
 - An AWS account, with the AWS CLI configured (`aws configure`) so Terraform can use your credentials
 - [Terraform](https://developer.hashicorp.com/terraform/install) 1.5 or newer
+- `make`, which is optional. The Makefile only wraps the Terraform commands.
 
 ## Run the site locally
 
 ```bash
 git clone git@github.com:gcodiac/aws-s3-static-site-cicd.git
 cd aws-s3-static-site-cicd
-git checkout 2-terraform-start
+git checkout 2-terraform-end
 
-python3 -m http.server 8080    # http://localhost:8080
+make serve    # http://localhost:8080
 ```
-
-You can also use the VS Code Live Server extension.
-
-## Your task
-
-The site is ready, but there is no `infra/` folder and no Makefile yet. Create
-`infra/main.tf` so that Terraform builds everything the diagram shows:
-
-1. **Provider:** the `hashicorp/aws` provider, with the region as a variable.
-2. **Bucket name:** a required `bucket_name` variable, since bucket names are globally unique.
-3. **Bucket:** an `aws_s3_bucket`.
-4. **Public access:** an `aws_s3_bucket_public_access_block` with all four settings set to `false`, because new buckets block public access by default.
-5. **Website hosting:** an `aws_s3_bucket_website_configuration` with `index.html` as the index document and `404.html` as the error document.
-6. **Public read:** an `aws_s3_bucket_policy` that allows `s3:GetObject` for everyone.
-7. **Files:** one `aws_s3_object` for each site file, using `for_each` and `fileset`. Set the content type so the browser renders the files instead of downloading them.
-8. **Output:** the website URL.
-
-The Terraform documentation for the AWS provider has an example of each resource.
 
 ## Deploy
 
 ```bash
-cd infra
-terraform init                                   # download the AWS provider
-terraform apply -var bucket_name=my-bucket-name  # shows the plan, then asks for approval
-terraform destroy -var bucket_name=my-bucket-name  # delete everything when you are done
+make init                           # download the AWS provider
+make deploy BUCKET=my-bucket-name   # terraform apply: shows the plan, then asks for approval
+make destroy BUCKET=my-bucket-name  # delete everything when you are done
 ```
 
-`terraform apply` prints the website URL when it finishes. Edit the site and run it again, and
-Terraform uploads only the files that changed.
+Bucket names are globally unique, so pick your own. `make deploy` prints the website URL when it
+finishes. Edit the site and run it again, and Terraform uploads only the files that changed.
+
+Without `make`, run the same commands directly:
+
+```bash
+cd infra
+terraform init
+terraform apply -var bucket_name=my-bucket-name
+```
+
+## What the Terraform creates
+
+All of it is in the [infra/](infra/) folder. You do not need an existing bucket.
+
+| Resource | Purpose |
+| --- | --- |
+| `aws_s3_bucket` | The bucket itself |
+| `aws_s3_bucket_public_access_block` | Turns off the default block on public access |
+| `aws_s3_bucket_website_configuration` | Serves `index.html`, and `404.html` for missing files |
+| `aws_s3_bucket_policy` | Lets anyone read the objects |
+| `aws_s3_object` | One per site file, with the right content type |
+
+State is kept locally in `infra/terraform.tfstate`, which is not committed.
+
+The S3 website endpoint serves HTTP only, and the bucket is public by design. That is fine for
+learning. The next stage shows how to do it properly.
 
 ---
 
 ## Cost
 
-S3 storage and requests only, which is pennies for a small site. Run `terraform destroy` when
-you no longer need the bucket.
+S3 storage and requests only, which is pennies for a small site. Run `make destroy` when you
+no longer need the bucket.
 
 ---
 
