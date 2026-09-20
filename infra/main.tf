@@ -2,40 +2,32 @@ resource "aws_s3_bucket" "site" {
   bucket = var.bucket_name
 }
 
-# New buckets block public access. This site is meant to be public, so switch it off.
+# The bucket is private: nobody can read it directly. Only CloudFront can, via the policy below.
 resource "aws_s3_bucket_public_access_block" "site" {
   bucket = aws_s3_bucket.site.id
 
-  block_public_acls       = false
-  ignore_public_acls      = false
-  block_public_policy     = false
-  restrict_public_buckets = false
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = true
+  restrict_public_buckets = true
 }
 
-resource "aws_s3_bucket_website_configuration" "site" {
+# Allow the CloudFront service to read objects, but only for this one distribution.
+resource "aws_s3_bucket_policy" "cloudfront_read" {
   bucket = aws_s3_bucket.site.id
-
-  index_document {
-    suffix = "index.html"
-  }
-
-  error_document {
-    key = "404.html"
-  }
-}
-
-# Let anyone read the objects.
-resource "aws_s3_bucket_policy" "public_read" {
-  bucket     = aws_s3_bucket.site.id
-  depends_on = [aws_s3_bucket_public_access_block.site]
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = "*"
+      Principal = { Service = "cloudfront.amazonaws.com" }
       Action    = "s3:GetObject"
       Resource  = "${aws_s3_bucket.site.arn}/*"
+      Condition = {
+        StringEquals = {
+          "AWS:SourceArn" = aws_cloudfront_distribution.site.arn
+        }
+      }
     }]
   })
 }
