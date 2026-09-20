@@ -1,0 +1,15 @@
+# Copy this file to terraform.tfvars and edit the values.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# terraform.tfvars is ignored by git, so your own values are never committed.
+# Terraform reads it automatically, so you can run `terraform apply` with no -var flags.
+
+# Bucket names are unique across all of AWS. Choose your own.
+bucket_name = "my-unique-bucket-name"
+
+# region = "eu-west-1"
+
+# OPTIONAL custom domain: uncomment these, together with acm.tf, dns.tf and waf.tf.
+# domain_name      = "site.example.com"
+# hosted_zone_name = "example.com"

@@ -1,0 +1,90 @@
+name: Deploy
+
+# Pull request: check the code and show the Terraform plan.
+# Push to main: apply the Terraform, upload the site, clear the CloudFront cache.
+# Run manually: pick any branch in the "Use workflow from" box and deploy it,
+# with no pull request. The site is uploaded and the cache cleared. Terraform is
+# only applied if you tick the box, so a branch preview cannot change your AWS setup.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      apply_infra:
+        description: "Also run terraform apply (this changes your AWS infrastructure)"
+        type: boolean
+        default: false
+
+# GitHub gives the job a signed token, and AWS swaps it for temporary credentials.
+permissions:
+  id-token: write
+  contents: read
+
+# Never run two deployments at once.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_VAR_bucket_name: ${{ vars.BUCKET_NAME }}
+  # OPTIONAL custom domain: uncomment, and add these two repository variables.
+  # TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+  # TF_VAR_hosted_zone_name: ${{ vars.HOSTED_ZONE_NAME }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Sign in to AWS with OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ">=1.10"
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check
+
+      - name: Terraform init
+        run: >
+          terraform init -input=false
+          -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+          -backend-config="region=${{ vars.AWS_REGION }}"
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -input=false
+
+      - name: Terraform apply
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.apply_infra)
+        run: terraform apply -input=false -auto-approve
+
+      - name: Upload the site to S3
+        if: github.event_name != 'pull_request'
+        working-directory: .
+        run: >
+          aws s3 sync . "s3://${{ vars.BUCKET_NAME }}" --delete
+          --exclude ".git/*" --exclude ".github/*" --exclude ".gitignore"
+          --exclude "infra/*" --exclude "docs/*" --exclude "Makefile"
+          --exclude "README.md" --exclude "LICENSE"
+
+      - name: Clear the CloudFront cache
+        if: github.event_name != 'pull_request'
+        run: >
+          aws cloudfront create-invalidation --paths "/*"
+          --distribution-id "$(terraform output -raw distribution_id)"
