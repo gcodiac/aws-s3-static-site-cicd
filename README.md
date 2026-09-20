@@ -1,15 +1,15 @@
-# Cloud Launchpad: CI/CD with GitHub Actions (start)
+# Cloud Launchpad: CI/CD with GitHub Actions (end)
 
 Deploy the site automatically. When you push to `main`, GitHub Actions applies the Terraform,
 uploads the site to S3 and clears the CloudFront cache, signing in to AWS with OIDC so there are
-no access keys stored in GitHub. In this stage **you build the pipeline**. The finished version
-is on the `7-cicd-end` branch if you get stuck.
+no access keys stored in GitHub. This is the finished version. To build it yourself, start from
+the `6-cicd-start` branch.
 
 ## Architecture
 
 ![AWS architecture: a git push starts a GitHub Actions pipeline that gets temporary credentials from an IAM role through OIDC, runs Terraform, uploads the files to a private S3 bucket and invalidates the CloudFront cache](assets/images/architecture.svg)
 
-The diagram shows the full platform. This stage builds the pipeline at the bottom and connects it
+The diagram shows the full platform. This stage adds the pipeline at the bottom and connects it
 to the private S3 bucket and CloudFront from the previous stage:
 
 1. **`git push`** starts the workflow.
@@ -35,30 +35,31 @@ Route 53, WAF and Certificate Manager are not part of this stage. Visitors use t
 ```bash
 git clone git@github.com:gcodiac/aws-s3-static-site-cicd.git
 cd aws-s3-static-site-cicd
-git checkout 6-cicd-start
+git checkout 7-cicd-end
 
 make serve    # http://localhost:8080
 ```
 
-## Starting point
+## How it works
 
-`infra/` builds a private S3 bucket and a CloudFront distribution, as in the previous stage. One
-thing changed: **Terraform no longer uploads the site files**. The pipeline does that, so the
-bucket is empty until your workflow runs.
+Two things changed from the previous stage:
 
-Deploy the infrastructure once from your laptop, so there is something to deploy to:
+- **Terraform no longer uploads the site files.** It builds the infrastructure, and the pipeline uploads the content.
+- **State lives in S3.** [infra/backend.tf](infra/backend.tf) stores it in a state bucket with S3's native locking, because every workflow run starts on a fresh machine. That needs Terraform 1.10 or newer, which `versions.tf` now requires.
 
-```bash
-cp infra/terraform.tfvars.example infra/terraform.tfvars   # set your own bucket_name
-make init
-make deploy
-```
+The pipeline is one file, [.github/workflows/deploy.yml](.github/workflows/deploy.yml):
 
-## Your task
+| Trigger | What it does |
+| --- | --- |
+| Pull request to `main` | Signs in to AWS, then runs `terraform fmt -check`, `init`, `validate` and `plan`. Nothing changes in AWS. |
+| Push to `main` | Does the same checks, then `terraform apply`, uploads the site with `aws s3 sync`, and creates a CloudFront invalidation. |
 
-### Part 1: One-time setup in AWS and GitHub
+It signs in with OIDC (`id-token: write`), so there are no AWS keys stored in GitHub. The IAM role is
+what makes that safe, and you create it by hand in the setup below.
 
-CI cannot create its own login, so you set these up by hand.
+## Setup
+
+CI cannot create its own login, so you set these up by hand, once.
 
 1. **State bucket:** create a second S3 bucket to hold the Terraform state, with versioning turned on. Every workflow run starts on a fresh machine, so the state has to live somewhere shared.
 2. **OIDC provider:** in the IAM console go to *Identity providers*, then *Add provider*. Choose *OpenID Connect*, set the provider URL to `https://token.actions.githubusercontent.com` and the audience to `sts.amazonaws.com`, then click *Add provider*. An account only needs one of these, so skip this step if it already exists.
@@ -178,24 +179,105 @@ CI cannot create its own login, so you set these up by hand.
 
 6. **Repository variables:** in the GitHub repository settings, under *Secrets and variables*, *Actions*, *Variables*, add `AWS_ROLE_ARN` (the role's ARN), `AWS_REGION`, `TF_STATE_BUCKET` and `BUCKET_NAME`.
 
-### Part 2: Change the Terraform
+## First deployment
 
-7. **Backend:** add `infra/backend.tf` that stores the state in the state bucket, using S3's native locking (`use_lockfile = true`). Raise `required_version` in `versions.tf` to `1.10` or newer, and move your existing state with `terraform init -migrate-state`.
+1. Do the setup above.
+2. If you already deployed the infrastructure from your laptop, move its state into the state bucket:
 
-### Part 3: Write the workflow
+   ```bash
+   cd infra
+   terraform init -migrate-state \
+     -backend-config="bucket=<state-bucket>" \
+     -backend-config="region=<region>"
+   ```
 
-8. Create `.github/workflows/deploy.yml` that
-   - runs on pull requests to `main` and on pushes to `main`
-   - has the permissions `id-token: write` and `contents: read`
-   - signs in with `aws-actions/configure-aws-credentials`, using `AWS_ROLE_ARN`
-   - runs `terraform fmt -check`, `validate` and `plan` on a pull request
-   - runs `terraform apply -auto-approve` on a push to `main`
-   - then syncs the site files to the bucket with `aws s3 sync`, leaving out the repository files
-   - then creates a CloudFront invalidation for `/*`
+   Starting fresh? Skip this. The first pipeline run creates everything.
+3. Push to `main`, open the **Actions** tab and watch the run.
+4. When it finishes, open the site. The address is in the run's Terraform apply log as `cloudfront_url`, and in the CloudFront console as the distribution's domain name.
 
-   The bucket name comes from the `BUCKET_NAME` variable, which CI also passes to Terraform as `TF_VAR_bucket_name`. The distribution ID comes from `terraform output -raw distribution_id`.
+From now on, edit the site, push, and the pipeline deploys it. To try the pull request path, open a
+pull request and read the plan in the workflow log.
 
-Push it to `main`, open the Actions tab and watch it run. Then open the `cloudfront_url`.
+### If something fails
+
+| Symptom | Likely cause |
+| --- | --- |
+| `Not authorized to perform sts:AssumeRoleWithWebIdentity` | The trust policy's `sub` does not match. Look up the failed event in CloudTrail to see the exact value GitHub sent. |
+| `AccessDenied` on an S3 or CloudFront action | The role's permissions policy is missing that action. The error names it, so add it. |
+| `Error acquiring the state lock` | Another run is using the state, or a run was cancelled. Wait, or delete the `.tflock` object in the state bucket. |
+| The site shows old content | Give the cache invalidation a minute, then refresh. |
+
+## Optional: custom domain, certificate and WAF
+
+The diagram also shows Route 53, Certificate Manager and WAF. They are **off by default**, because they
+need a domain and add cost, but the Terraform is already in the repository, commented out, so you can
+try them:
+
+- [infra/acm.tf](infra/acm.tf): an HTTPS certificate for your domain
+- [infra/dns.tf](infra/dns.tf): the Route 53 records that validate the certificate and point the domain at CloudFront
+- [infra/waf.tf](infra/waf.tf): a web application firewall using AWS's common-attacks rule set
+
+You need a domain whose DNS is already hosted in Route 53.
+
+1. **Uncomment the three files.** In VS Code, open each one, select everything and press `Ctrl+/`.
+2. **Uncomment the two lines and the certificate block in [infra/cloudfront.tf](infra/cloudfront.tf):** `aliases`, `web_acl_id`, and the second `viewer_certificate` (delete the first one).
+3. **Set your domain:** uncomment `domain_name` and `hosted_zone_name` in `infra/terraform.tfvars`.
+4. **For the pipeline:** add the repository variables `DOMAIN_NAME` and `HOSTED_ZONE_NAME`, and uncomment the two `TF_VAR_` lines in `.github/workflows/deploy.yml`.
+5. **Give the role more permissions.** Add these statements to the role's inline policy:
+
+   <details>
+   <summary>Extra permissions</summary>
+
+   ```json
+   {
+     "Sid": "Certificates",
+     "Effect": "Allow",
+     "Action": [
+       "acm:RequestCertificate",
+       "acm:DescribeCertificate",
+       "acm:DeleteCertificate",
+       "acm:AddTagsToCertificate",
+       "acm:ListTagsForCertificate"
+     ],
+     "Resource": "*"
+   },
+   {
+     "Sid": "DnsRecords",
+     "Effect": "Allow",
+     "Action": [
+       "route53:GetHostedZone",
+       "route53:ListResourceRecordSets",
+       "route53:ChangeResourceRecordSets",
+       "route53:ListTagsForResource"
+     ],
+     "Resource": "arn:aws:route53:::hostedzone/<zone-id>"
+   },
+   {
+     "Sid": "DnsLookups",
+     "Effect": "Allow",
+     "Action": ["route53:ListHostedZonesByName", "route53:GetChange"],
+     "Resource": "*"
+   },
+   {
+     "Sid": "Firewall",
+     "Effect": "Allow",
+     "Action": [
+       "wafv2:CreateWebACL",
+       "wafv2:GetWebACL",
+       "wafv2:UpdateWebACL",
+       "wafv2:DeleteWebACL",
+       "wafv2:ListTagsForResource",
+       "wafv2:TagResource"
+     ],
+     "Resource": "*"
+   }
+   ```
+
+   </details>
+
+6. **Push to `main`.** The certificate validates through DNS, which can take a few minutes. Then open your own domain.
+
+Route 53 charges for the hosted zone, and WAF has a monthly charge plus a per-request one. If you only want to look, do not uncomment anything.
 
 ---
 
