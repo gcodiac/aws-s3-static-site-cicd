@@ -1,14 +1,21 @@
-# Cloud Launchpad: Stage 2, Terraform (end)
+# Cloud Launchpad: S3 + CloudFront (start)
 
-Host a static website on S3 with Terraform, run from your own machine. This is the finished
-version of stage 2. To build it yourself, start from the `2-terraform-start` branch.
+Put CloudFront in front of the site and make the S3 bucket private. In this stage **you extend
+the Terraform** from the previous stage. The finished version is on the `5-cloudfront-end` branch
+if you get stuck.
 
 ## Architecture
 
-![AWS architecture: an engineer runs Terraform to create a public S3 bucket and upload the static files, and visitors load the site from the S3 website endpoint or a custom domain through Route 53](assets/images/architecture.svg)
+![AWS architecture: an engineer runs Terraform to create a private S3 bucket that is served through CloudFront using Origin Access Control](assets/images/architecture.svg)
 
-Terraform, run from your machine, creates the public S3 bucket and uploads the static files.
-Visitors load the site from the bucket's website endpoint, or from a custom domain through Route 53.
+The diagram shows the full platform. In this stage you build the part in the middle:
+
+- a **private S3 bucket**, with all public access blocked
+- a **CloudFront distribution** that serves the site over HTTPS
+- **Origin Access Control (OAC)** and a **bucket policy**, so only that distribution can read the bucket
+
+Route 53, WAF and Certificate Manager come in later stages. Visitors use the
+`*.cloudfront.net` address, which already has HTTPS.
 
 ---
 
@@ -23,71 +30,56 @@ Visitors load the site from the bucket's website endpoint, or from a custom doma
 ```bash
 git clone git@github.com:gcodiac/aws-s3-static-site-cicd.git
 cd aws-s3-static-site-cicd
-git checkout 3-terraform-end
+git checkout 4-cloudfront-start
 
 make serve    # http://localhost:8080
 ```
 
-## Deploy
+## Starting point
 
-Bucket names are unique across all of AWS, so choose your own. There are two ways to set it.
-
-**Option A: a `terraform.tfvars` file (set it once)**
+`infra/` already has working Terraform for a **public** bucket with website hosting. Deploy it
+first if you want to see the difference:
 
 ```bash
-cp infra/terraform.tfvars.example infra/terraform.tfvars
-# edit infra/terraform.tfvars and set bucket_name
-
-make init      # download the AWS provider
-make deploy    # terraform apply: shows the plan, then asks for approval
+cp infra/terraform.tfvars.example infra/terraform.tfvars   # set your own bucket_name
+make init
+make deploy
 ```
 
-**Option B: pass the name each time**
+## Your task
+
+Change `infra/` so the bucket is private and CloudFront is the only way in:
+
+1. **Make the bucket private:** set all four settings in `aws_s3_bucket_public_access_block` to `true`, and remove the website configuration. CloudFront reads the bucket through its normal endpoint, not the website endpoint.
+2. **Origin Access Control:** add an `aws_cloudfront_origin_access_control` for S3, signing requests with `sigv4`.
+3. **Distribution:** add an `aws_cloudfront_distribution` that
+   - uses the bucket's regional domain name as its origin, with the access control attached
+   - sets `index.html` as the default root object
+   - redirects HTTP to HTTPS
+   - uses one of the AWS managed cache policies
+   - uses the default CloudFront certificate
+   - shows `404.html` for missing files
+4. **Bucket policy:** replace the public-read policy with one that lets the CloudFront service principal (`cloudfront.amazonaws.com`) run `s3:GetObject`, but only when the source ARN is your distribution.
+5. **Output:** print the CloudFront URL, `https://<distribution domain name>`.
+
+The Terraform documentation for the AWS provider has an example of each resource.
+
+## Deploy
 
 ```bash
 make init
-make deploy BUCKET=my-bucket-name
+make deploy
 ```
 
-When you are done, `make destroy` (with the same `BUCKET=...` if you used option B) deletes everything.
-
-`make deploy` prints the website URL when it finishes. Edit the site and run it again, and
-Terraform uploads only the files that changed.
-
-Without `make`, run the same commands directly:
-
-```bash
-cd infra
-terraform init
-terraform apply                                  # uses terraform.tfvars
-terraform apply -var bucket_name=my-bucket-name  # or pass the name
-```
-
-`terraform.tfvars` is ignored by git, so your own bucket name is never committed.
-
-## What the Terraform creates
-
-All of it is in the [infra/](infra/) folder. You do not need an existing bucket.
-
-| Resource | Purpose |
-| --- | --- |
-| `aws_s3_bucket` | The bucket itself |
-| `aws_s3_bucket_public_access_block` | Turns off the default block on public access |
-| `aws_s3_bucket_website_configuration` | Serves `index.html`, and `404.html` for missing files |
-| `aws_s3_bucket_policy` | Lets anyone read the objects |
-| `aws_s3_object` | One per site file, with the right content type |
-
-State is kept locally in `infra/terraform.tfstate`, which is not committed.
-
-The S3 website endpoint serves HTTP only, and the bucket is public by design. That is fine for
-learning. The next stage shows how to do it properly.
+CloudFront takes a few minutes to create, so be patient. When it finishes, open the printed URL.
+When you are done, `make destroy` deletes everything.
 
 ---
 
 ## Cost
 
-S3 storage and requests only, which is pennies for a small site. Run `make destroy` when you
-no longer need the bucket.
+S3 storage and requests, plus CloudFront usage. For a small site this is close to nothing, and
+CloudFront has a free monthly allowance. Run `make destroy` when you no longer need it.
 
 ---
 
