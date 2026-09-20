@@ -10,7 +10,7 @@
   <meta name="robots" content="noindex">
 
   <link rel="icon" href="/assets/icons/favicon.svg" type="image/svg+xml">
-  <!-- Root-relative paths on purpose: CloudFront serves this document for a
+  <!-- Root-relative paths on purpose: S3 serves this document for a
        missing object at *any* path (/blog/old-post, /a/b/c), so relative URLs
        would resolve against the wrong directory. -->
   <link rel="stylesheet" href="/css/styles.css">
@@ -54,7 +54,7 @@
       <p class="error__code">404</p>
       <h1>This object is not in the bucket</h1>
       <p>
-        CloudFront asked the origin for this path and S3 had nothing to return.
+        The S3 website endpoint looked for this path and the bucket had nothing to return.
         The link may be outdated, or the file may not have been included in the last deployment.
       </p>
       <p class="error__path mono" id="requested-path">/</p>
