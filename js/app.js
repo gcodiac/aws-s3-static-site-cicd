@@ -243,12 +243,12 @@
 
     var steps = [
       { t: '10:24:01', text: 'Local      3 files changed', cls: 't' },
-      { t: '10:24:02', text: 'Command    make deploy BUCKET=aliskool', cls: 'hl' },
-      { t: '10:24:03', text: 'Auth       AWS CLI credentials found', cls: 'ok' },
-      { t: '10:24:05', text: 'Compare    local folder vs s3://aliskool', cls: 'ok' },
-      { t: '10:24:06', text: 'Sync       3 objects uploaded, 1 deleted', cls: 'em' },
-      { t: '10:24:07', text: 'Website    static hosting enabled', cls: 'hl' },
-      { t: '10:24:08', text: 'View       http://aliskool.s3-website-eu-west-1.amazonaws.com', cls: 'ok' }
+      { t: '10:24:02', text: 'Command    terraform apply', cls: 'hl' },
+      { t: '10:24:03', text: 'Auth       AWS credentials found', cls: 'ok' },
+      { t: '10:24:05', text: 'Plan       2 to add, 1 to change', cls: 'ok' },
+      { t: '10:24:09', text: 'Apply      resources created, files uploaded', cls: 'em' },
+      { t: '10:24:11', text: 'Website    static hosting enabled', cls: 'hl' },
+      { t: '10:24:11', text: 'View       http://aliskool.s3-website-eu-west-1.amazonaws.com', cls: 'ok' }
     ];
 
     function line(step) {
