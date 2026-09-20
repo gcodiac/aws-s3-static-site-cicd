@@ -1,101 +1,96 @@
-# Cloud Launchpad: S3 + CloudFront (end)
+# Cloud Launchpad: CI/CD with GitHub Actions (start)
 
-Serve the site through CloudFront and keep the S3 bucket private. This is the finished
-version. To build it yourself, start from the `4-cloudfront-start` branch.
+Deploy the site automatically. When you push to `main`, GitHub Actions applies the Terraform,
+uploads the site to S3 and clears the CloudFront cache, signing in to AWS with OIDC so there are
+no access keys stored in GitHub. In this stage **you build the pipeline**. The finished version
+is on the `7-cicd-end` branch if you get stuck.
 
 ## Architecture
 
-![AWS architecture: an engineer runs Terraform to create a private S3 bucket that is served through CloudFront using Origin Access Control](assets/images/architecture.svg)
+![AWS architecture: a git push starts a GitHub Actions pipeline that gets temporary credentials from an IAM role through OIDC, runs Terraform, uploads the files to a private S3 bucket and invalidates the CloudFront cache](assets/images/architecture.svg)
 
-The diagram shows the full platform. This stage builds the part in the middle:
+The diagram shows the full platform. This stage builds the pipeline at the bottom and connects it
+to the private S3 bucket and CloudFront from the previous stage:
 
-- a **private S3 bucket**, with all public access blocked
-- a **CloudFront distribution** that serves the site over HTTPS
-- **Origin Access Control (OAC)** and a **bucket policy**, so only that distribution can read the bucket
+1. **`git push`** starts the workflow.
+2. **Checkout and checks:** the workflow fetches the code and validates it.
+3. **OIDC:** GitHub proves who it is, and AWS hands back temporary credentials for an IAM role.
+4. **Terraform** plans and applies the infrastructure.
+5. **Upload to S3:** the site files are synced to the bucket.
+6. **CloudFront invalidation:** the cache is cleared so visitors see the change.
 
-Route 53, WAF and Certificate Manager come in later stages. Visitors use the
-`*.cloudfront.net` address, which already has HTTPS.
+Route 53, WAF and Certificate Manager are not part of this stage. Visitors use the
+`*.cloudfront.net` address.
 
 ---
 
 ## Prerequisites
 
-- An AWS account, with the AWS CLI configured (`aws configure`) so Terraform can use your credentials
-- [Terraform](https://developer.hashicorp.com/terraform/install) 1.5 or newer
-- `make`, which is optional. The Makefile only wraps the Terraform commands.
+- Everything from the previous stage: an AWS account with the AWS CLI configured, and Terraform
+- A GitHub repository you can push to, with Actions enabled (a fork of this one works)
+- `make`, which is optional
 
 ## Run the site locally
 
 ```bash
 git clone git@github.com:gcodiac/aws-s3-static-site-cicd.git
 cd aws-s3-static-site-cicd
-git checkout 5-cloudfront-end
+git checkout 6-cicd-start
 
 make serve    # http://localhost:8080
 ```
 
-## Deploy
+## Starting point
 
-Bucket names are unique across all of AWS, so choose your own.
+`infra/` builds a private S3 bucket and a CloudFront distribution, as in the previous stage. One
+thing changed: **Terraform no longer uploads the site files**. The pipeline does that, so the
+bucket is empty until your workflow runs.
+
+Deploy the infrastructure once from your laptop, so there is something to deploy to:
 
 ```bash
 cp infra/terraform.tfvars.example infra/terraform.tfvars   # set your own bucket_name
 make init
-make deploy     # terraform apply: shows the plan, then asks for approval
+make deploy
 ```
 
-Or pass the name each time: `make deploy BUCKET=my-bucket-name`.
+## Your task
 
-CloudFront takes a few minutes to create. When it finishes, `make deploy` prints
-the `cloudfront_url`. Open it.
+### Part 1: One-time setup in AWS and GitHub
 
-Without `make`, run the same commands directly:
+CI cannot create its own login, so you set these up by hand.
 
-```bash
-cd infra
-terraform init
-terraform apply
-```
+1. **State bucket:** create a second S3 bucket to hold the Terraform state, with versioning turned on. Every workflow run starts on a fresh machine, so the state has to live somewhere shared.
+2. **OIDC provider:** in IAM, add an identity provider for `token.actions.githubusercontent.com`, with the audience `sts.amazonaws.com`.
+3. **IAM role:** create a role for that provider. Its trust policy should only allow your repository (`repo:<owner>/<repo>:*`). For learning, give it `AdministratorAccess`. A real project would scope the permissions down.
+4. **Repository variables:** in the GitHub repository settings, under *Secrets and variables*, *Actions*, *Variables*, add `AWS_ROLE_ARN`, `AWS_REGION`, `TF_STATE_BUCKET` and `BUCKET_NAME`.
 
-### Changing the site
+### Part 2: Change the Terraform
 
-Edit a file and run `make deploy` again. Terraform uploads only the files that changed. CloudFront
-caches files for up to a day, so clear its cache to see the change straight away:
+5. **Backend:** add `infra/backend.tf` that stores the state in the state bucket, using S3's native locking (`use_lockfile = true`). Raise `required_version` in `versions.tf` to `1.10` or newer, and move your existing state with `terraform init -migrate-state`.
 
-```bash
-make invalidate
-```
+### Part 3: Write the workflow
 
-### Clean up
+6. Create `.github/workflows/deploy.yml` that
+   - runs on pull requests to `main` and on pushes to `main`
+   - has the permissions `id-token: write` and `contents: read`
+   - signs in with `aws-actions/configure-aws-credentials`, using `AWS_ROLE_ARN`
+   - runs `terraform fmt -check`, `validate` and `plan` on a pull request
+   - runs `terraform apply -auto-approve` on a push to `main`
+   - then syncs the site files to the bucket with `aws s3 sync`, leaving out the repository files
+   - then creates a CloudFront invalidation for `/*`
 
-```bash
-make destroy    # add BUCKET=... if you used it with make deploy
-```
+   The bucket name comes from the `BUCKET_NAME` variable, which CI also passes to Terraform as `TF_VAR_bucket_name`. The distribution ID comes from `terraform output -raw distribution_id`.
 
-## What the Terraform creates
-
-All of it is in the [infra/](infra/) folder. You do not need an existing bucket.
-
-| Resource | Purpose |
-| --- | --- |
-| `aws_s3_bucket` | The bucket, kept private |
-| `aws_s3_bucket_public_access_block` | Blocks all public access |
-| `aws_cloudfront_origin_access_control` | Lets CloudFront sign its requests to S3 |
-| `aws_cloudfront_distribution` | Serves the site over HTTPS and shows `404.html` for missing files |
-| `aws_s3_bucket_policy` | Lets only this distribution read the bucket |
-| `aws_s3_object` | One per site file, with the right content type |
-
-Visitors use the `*.cloudfront.net` address, which has HTTPS from the default CloudFront
-certificate. Opening the bucket's own S3 address returns Access Denied, which is the point.
-
-State is kept locally in `infra/terraform.tfstate`, which is not committed.
+Push it to `main`, open the Actions tab and watch it run. Then open the `cloudfront_url`.
 
 ---
 
 ## Cost
 
-S3 storage and requests, plus CloudFront usage. For a small site this is close to nothing, and
-CloudFront has a free monthly allowance. Run `make destroy` when you no longer need it.
+S3 storage and requests, plus CloudFront usage. GitHub Actions is free for public repositories.
+For a small site this is close to nothing. Run `make destroy` when you no longer need it, and delete the
+state bucket separately.
 
 ---
 
