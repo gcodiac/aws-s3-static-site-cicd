@@ -65,9 +65,17 @@ The same hosting, declared as code and applied from your machine. Build it yours
 
 ![Stage 2: an engineer runs Terraform to create a public S3 bucket and upload the static files](assets/images/stage-2-terraform.svg)
 
-### Stage 3: Platform engineering ([`platform-engineering`](../../tree/platform-engineering))
+### Stage 3: CI/CD with GitHub Actions ([`6-cicd-start`](../../tree/6-cicd-start) and [`7-cicd-end`](../../tree/7-cicd-end))
 
-Private S3 origin, CloudFront, TLS, Terraform and GitHub Actions with OIDC. The full setup.
+A private S3 bucket behind CloudFront, deployed by GitHub Actions. A push to `main` applies the
+Terraform, uploads the site and clears the cache, signing in to AWS with OIDC so no keys are stored.
+It builds on the S3 and CloudFront stages ([`4-cloudfront-start`](../../tree/4-cloudfront-start) and
+[`5-cloudfront-end`](../../tree/5-cloudfront-end)). This branch already contains the finished
+version: see `infra/` and `.github/workflows/deploy.yml`.
+
+![Stage 3: a git push starts a GitHub Actions pipeline that gets temporary credentials through OIDC, runs Terraform, uploads the site to a private S3 bucket and invalidates the CloudFront cache](assets/images/stage-3-cicd.svg)
+
+The full production reference is on [`platform-engineering`](../../tree/platform-engineering).
 
 ---
 
