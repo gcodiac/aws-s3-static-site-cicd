@@ -89,9 +89,9 @@ CI cannot create its own login, so you set these up by hand, once.
          },
          "StringLike": {
            "token.actions.githubusercontent.com:sub": [
-             "repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:refs/heads/main",
+             "repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:refs/heads/*",
              "repo:<owner>@<owner_id>/<repo>@<repo_id>:pull_request",
-             "repo:<owner>/<repo>:ref:refs/heads/main",
+             "repo:<owner>/<repo>:ref:refs/heads/*",
              "repo:<owner>/<repo>:pull_request"
            ]
          }
@@ -102,7 +102,7 @@ CI cannot create its own login, so you set these up by hand, once.
 
    </details>
 
-   The `sub` condition is the whole security boundary. It names one repository, and only its `main` branch and its pull requests. Never write it as `repo:<owner>/*`, and never leave it out: without it, any GitHub Actions workflow in any repository could assume your role.
+   The `sub` condition is the whole security boundary. It names one repository, and only its branches and its pull requests. The `*` after `refs/heads/` lets you deploy any branch by hand (see below). If you only ever deploy `main`, change it to `refs/heads/main`. Never write it as `repo:<owner>/*`, and never leave it out: without it, any GitHub Actions workflow in any repository could assume your role.
 
    The first two lines are the ID form that GitHub is rolling out. The last two are the classic form, for repositories that have not switched yet. Once you know which one your repository uses, delete the other pair. If a run fails with `Not authorized to perform sts:AssumeRoleWithWebIdentity`, the claim did not match. Look up the failed `AssumeRoleWithWebIdentity` event in CloudTrail to see the exact `sub` value GitHub sent.
 
@@ -206,6 +206,23 @@ pull request and read the plan in the workflow log.
 | `AccessDenied` on an S3 or CloudFront action | The role's permissions policy is missing that action. The error names it, so add it. |
 | `Error acquiring the state lock` | Another run is using the state, or a run was cancelled. Wait, or delete the `.tflock` object in the state bucket. |
 | The site shows old content | Give the cache invalidation a minute, then refresh. |
+
+## Deploy a branch by hand
+
+You do not need a pull request to try a branch:
+
+1. Open the **Actions** tab, choose the **Deploy** workflow, and click **Run workflow**.
+2. In **Use workflow from**, pick the branch you want to deploy.
+3. Leave **Also run terraform apply** unticked to deploy only the site. Tick it if the branch also changes the infrastructure.
+4. Click **Run workflow**.
+
+The run uploads that branch's site to the same bucket and clears the CloudFront cache, so the live
+site becomes the branch. It also uses the workflow file from that branch. The next push to `main`
+puts `main` back.
+
+Terraform is off by default for a manual run because the state is shared: a branch with different
+infrastructure would change your real setup. The workflow file must exist on the default branch for
+the **Run workflow** button to appear.
 
 ## Optional: custom domain, certificate and WAF
 
