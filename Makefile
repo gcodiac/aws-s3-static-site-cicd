@@ -17,7 +17,7 @@ serve: ## Preview the site on http://localhost:8080
 init: ## Download the Terraform providers
 	terraform -chdir=infra init
 
-deploy: ## Create the bucket and CloudFront, and upload the site
+deploy: ## Create the bucket and CloudFront (the pipeline uploads the site)
 	terraform -chdir=infra apply $(VARS)
 
 invalidate: ## Clear CloudFront's cache so changes show up straight away
