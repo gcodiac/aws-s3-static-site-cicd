@@ -1,21 +1,31 @@
 name: Deploy
 
 # Pull request: check the code and show the Terraform plan.
-# Push to main: apply the Terraform, upload the site, clear the CloudFront cache.
-# Run manually: pick any branch in the "Use workflow from" box and deploy it,
-# with no pull request. The site is uploaded and the cache cleared. Terraform is
-# only applied if you tick the box, so a branch preview cannot change your AWS setup.
+# Push to main: switched off (see the commented trigger below). Use "Run workflow" instead.
+# Run workflow (Actions tab): pick a branch in "Use workflow from", then choose an action:
+#   Deploy site only               uploads that branch's site and clears the cache. Terraform is not applied.
+#   Deploy site and infrastructure applies the Terraform first, then uploads the site.
+#   Destroy everything             empties the bucket and runs terraform destroy. Type the bucket name to confirm.
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+  # OFF for now. Uncomment to deploy on every push to main.
+  # push:
+  #   branches: [main]
   workflow_dispatch:
     inputs:
-      apply_infra:
-        description: "Also run terraform apply (this changes your AWS infrastructure)"
-        type: boolean
-        default: false
+      action:
+        description: "What should this run do?"
+        type: choice
+        default: "Deploy site only"
+        options:
+          - "Deploy site only"
+          - "Deploy site and infrastructure"
+          - "Destroy everything"
+      confirm_bucket:
+        description: "Destroy only: type the bucket name to confirm"
+        type: string
+        required: false
 
 # GitHub gives the job a signed token, and AWS swaps it for temporary credentials.
 permissions:
@@ -30,6 +40,8 @@ concurrency:
 env:
   TF_IN_AUTOMATION: "true"
   TF_VAR_bucket_name: ${{ vars.S3_BUCKET }}
+  # What this run does. A push always applies the Terraform and uploads the site.
+  ACTION: ${{ github.event_name == 'workflow_dispatch' && inputs.action || (github.event_name == 'push' && 'Deploy site and infrastructure' || 'Check only') }}
   # OPTIONAL custom domain: uncomment, and add these two repository variables.
   # TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
   # TF_VAR_hosted_zone_name: ${{ vars.HOSTED_ZONE_NAME }}
@@ -42,6 +54,18 @@ jobs:
         working-directory: infra
     steps:
       - uses: actions/checkout@v7
+
+      # Fail fast, before signing in to AWS, if the destroy was not confirmed.
+      - name: Confirm the destroy
+        if: env.ACTION == 'Destroy everything'
+        env:
+          CONFIRM: ${{ inputs.confirm_bucket }}
+          BUCKET: ${{ vars.S3_BUCKET }}
+        run: |
+          if [ "$CONFIRM" != "$BUCKET" ]; then
+            echo "::error::To destroy, type the bucket name ($BUCKET) in 'Destroy only: type the bucket name to confirm'."
+            exit 1
+          fi
 
       - name: Sign in to AWS with OIDC
         uses: aws-actions/configure-aws-credentials@v6
@@ -71,11 +95,11 @@ jobs:
         run: terraform plan -input=false
 
       - name: Terraform apply
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.apply_infra)
+        if: env.ACTION == 'Deploy site and infrastructure'
         run: terraform apply -input=false -auto-approve
 
       - name: Upload the site to S3
-        if: github.event_name != 'pull_request'
+        if: env.ACTION == 'Deploy site only' || env.ACTION == 'Deploy site and infrastructure'
         working-directory: .
         run: >
           aws s3 sync . "s3://${{ vars.S3_BUCKET }}" --delete
@@ -84,17 +108,45 @@ jobs:
           --exclude "README.md" --exclude "LICENSE"
 
       - name: Clear the CloudFront cache
-        if: github.event_name != 'pull_request'
+        if: env.ACTION == 'Deploy site only' || env.ACTION == 'Deploy site and infrastructure'
         run: >
           aws cloudfront create-invalidation --paths "/*"
           --distribution-id "$(terraform output -raw distribution_id)"
 
       - name: Show the site URL
-        if: github.event_name != 'pull_request'
+        if: env.ACTION == 'Deploy site only' || env.ACTION == 'Deploy site and infrastructure'
         run: |
           {
             echo "### Site deployed"
             echo
             terraform output -raw cloudfront_url
             echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The site files were uploaded by the pipeline, not Terraform, so Terraform does not know about
+      # them and cannot delete a bucket that still contains them. Empty it first.
+      - name: Empty the site bucket
+        if: env.ACTION == 'Destroy everything'
+        working-directory: .
+        env:
+          BUCKET: ${{ vars.S3_BUCKET }}
+        run: |
+          if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+            aws s3 rm "s3://$BUCKET" --recursive
+          else
+            echo "Bucket $BUCKET not found, nothing to empty."
+          fi
+
+      - name: Terraform destroy
+        if: env.ACTION == 'Destroy everything'
+        run: terraform destroy -input=false -auto-approve
+
+      - name: Report the destroy
+        if: env.ACTION == 'Destroy everything'
+        run: |
+          {
+            echo "### Destroyed"
+            echo
+            echo "The bucket, the CloudFront distribution and the access control are gone."
+            echo "The state bucket and the IAM role are not touched."
           } >> "$GITHUB_STEP_SUMMARY"
