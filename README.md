@@ -207,22 +207,39 @@ pull request and read the plan in the workflow log.
 | `Error acquiring the state lock` | Another run is using the state, or a run was cancelled. Wait, or delete the `.tflock` object in the state bucket. |
 | The site shows old content | Give the cache invalidation a minute, then refresh. |
 
-## Deploy a branch by hand
+## Run it by hand
 
-You do not need a pull request to try a branch:
+You do not need a pull request to try a branch, or to clean up:
 
 1. Open the **Actions** tab, choose the **Deploy** workflow, and click **Run workflow**.
-2. In **Use workflow from**, pick the branch you want to deploy.
-3. Leave **Also run terraform apply** unticked to deploy only the site. Tick it if the branch also changes the infrastructure.
-4. Click **Run workflow**.
+2. In **Use workflow from**, pick the branch you want to use.
+3. In **What should this run do?**, choose an action:
 
-The run uploads that branch's site to the same bucket and clears the CloudFront cache, so the live
-site becomes the branch. It also uses the workflow file from that branch. The next push to `main`
-puts `main` back.
+   | Action | What it does |
+   | --- | --- |
+   | **Deploy site only** (default) | Uploads that branch's site to the bucket and clears the CloudFront cache. Terraform is not applied. |
+   | **Deploy site and infrastructure** | Applies the Terraform first, then uploads the site. Use it for the first deployment, or when the branch changes the infrastructure. |
+   | **Destroy everything** | Empties the site bucket and runs `terraform destroy`. |
 
-Terraform is off by default for a manual run because the state is shared: a branch with different
-infrastructure would change your real setup. The workflow file must exist on the default branch for
-the **Run workflow** button to appear.
+4. For a destroy, also type the bucket name into **Destroy only: type the bucket name to confirm**. The run stops immediately if it does not match your `S3_BUCKET` variable.
+5. Click **Run workflow**.
+
+A site deploy makes the live site the branch you picked, and the next push to `main` puts `main`
+back. It also uses the workflow file from that branch.
+
+**Deploy site only** is the default because the state is shared: a branch with different
+infrastructure would change your real setup if Terraform ran automatically. The workflow file must
+exist on the default branch for the **Run workflow** button to appear.
+
+### Destroying everything
+
+**Destroy everything** removes the bucket, the CloudFront distribution and the access control, so the
+site goes offline and the cost stops. It waits a few minutes for CloudFront to delete. It does not
+touch the state bucket or the IAM role, because the pipeline needs them. Delete those by hand when
+you are completely done: empty and delete the state bucket, and delete the role.
+
+To bring the site back, run **Deploy site and infrastructure**. **Deploy site only** would fail,
+because the bucket no longer exists.
 
 ## Optional: custom domain, certificate and WAF
 
